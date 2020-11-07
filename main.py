@@ -1,30 +1,27 @@
-from filtering import load_data, make_traj_matrix
-import numpy as np
-import pandas as pd
-import geopandas as gp
+from fmm import GPSConfig,ResultConfig, Network,NetworkGraph,STMATCH,STMATCHConfig
 
-north = 35.7417
-south = 35.7340
-east = 51.3520
-west = 51.3430
+config = STMATCHConfig()
+config.k = 4
+config.gps_error = 0.5
+config.radius = 0.4
+config.vmax = 30;
+config.factor =1.5
 
-# graph = ox.graph_from_bbox(north, south, east, west, network_type='drive')
-# area = ox.geometries_from_bbox(north, south, east, west, tags={'highway':True})
-# area.plot()
+network = Network('ground-map/map/MyGeometries.shp')
+graph = NetworkGraph(network)
+print(graph.get_num_vertices())
+model = STMATCH(network,graph)
 
-files_path = './data/'
-boundry = dict(
-    east=east,
-    west=west,
-    north=north,
-    south=south
-)
-trajs = load_data(files_path, boundry, './data/gps-csv')
-trajs = make_traj_matrix(trajs)
+input_config = GPSConfig()
+input_config.file = './data/trajectories/MyGeometries.shp'
+input_config.id = 'id'
 
-# for line in trajs:
-#     print(line)
+print(input_config.to_string())
+print('*'*20)
 
-df = pd.DataFrame(trajs, columns=['id', 'geometry'])
-df = gp.GeoDataFrame(df, geometry='geometry')
-df.to_file('MyGeometries.shp', driver='ESRI Shapefile')
+result_config = ResultConfig()
+result_config.file = './data/mr.txt'
+result_config.output_config.write_opath = True
+result_config.output_config.write_length = True
+status = model.match_gps_file(input_config, result_config, config)
+print(result_config.to_string())
