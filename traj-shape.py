@@ -27,4 +27,4 @@ trajs = make_traj_matrix(trajs)
 
 df = pd.DataFrame(trajs, columns=['id', 'geometry'])
 df = gp.GeoDataFrame(df, geometry='geometry')
-df.to_file('./data/trajectories/MyGeometries.shp', driver='ESRI Shapefile')
+df.to_file('./data/trajectories/trajs.shp', driver='ESRI Shapefile')
