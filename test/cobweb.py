@@ -2,7 +2,7 @@ import numpy as np
 import geopandas as gp
 from scipy.spatial.distance import cdist
 from collections import deque
-from time import sleep
+import pandas as pd
 import pickle
 
 def geo_center(S, vertices):
@@ -20,10 +20,23 @@ def adjacent_vertex(S, adjacencies):
         out_vertices = out_vertices.union(complements)
     return out_vertices
 
+def compute_dist(point, seed, dists, predecessors):
+    cobweb_dist = 0
+    predecessor = predecessors[point]
+    while point != seed:
+        cobweb_dist += dists[point, predecessor]
+        point = predecessor
+        predecessor = predecessors[point]
+    return cobweb_dist
 
-def gen_cobweb(traj_file, Rv=0.00015, Rc=0.0009):
+
+def gen_cobweb(traj_file, Rv=0.00015, Rc=0.0009, unmatch=True, match_file='./matches.csv'):
     trajectories = gp.read_file(traj_file)
     trajectories.set_index('id', drop=True, inplace=True)
+    if unmatch:
+        matches = pd.read_csv(match_file, sep=';', index_col='id', engine='python')
+        matches = matches[matches.cpath.isnull()]
+        trajectories = trajectories[trajectories.index.isin(matches.index)]
     newarray = np.concatenate(np.array(trajectories['geometry'].apply(lambda x: np.array(x.coords))))
     total_nodes = newarray.shape[0]
     V_set = []
@@ -47,7 +60,6 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
     random_choices = []
 
     while all_nodes != all_marked:
-    #     s = np.random.choice(indices)
         s = np.random.choice(indices[~np.isin(indices, random_choices)])
         random_choices.append(s)
         Q_g = deque()
@@ -62,19 +74,21 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
         marks = np.zeros((V_set.shape[0]), np.int)
 
 
-        graph_dict = {'marks':marks, 'S':S, 'graph_adj':adj_matrix, 'indices':indices}
+        graph_dict = {'marks':marks, 'S':S, 'graph_adj':adj_matrix, 'indices':indices, 'seed':V_set[s]}
         with open(save_graphPath, 'wb') as graph_file:
             pickle.dump(graph_dict, graph_file)
-        sleep(2)
+        # sleep(2)
 
         marks[s] = 1
         S.add(s)
         print(f'set S is: {S}')
 
         while len(Q_g) != 0:
+            predecessors = {}
             print(f'Q_g currently is: {Q_g}')
             print(f'Q_l currently is: {Q_l}')
             seed = Q_g.pop()
+            predecessors[seed] = seed
             print(f'node {seed} choosed as seed')
             print(f'adjacent nodes to seed {seed} are {np.where(adj_matrix[seed]==1)[0]}')
             for p in np.where(adj_matrix[seed]==1)[0]:
@@ -83,7 +97,9 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
                     marks[p] = 1
                     Q_l.appendleft(p)
                     print(f'node {p} marked and appended to Q_l')
-                    distances.appendleft(dists[seed, p])
+                    predecessors[p] = seed
+                    # distances.appendleft(dists[p, seed])
+                    distances.appendleft(compute_dist(p, seed, dists, predecessors))
                 else:
                     print(f'node {p} accepted as adjacent to seed {seed} but it is marked')
             print(f'adjcent nodes to seed {seed} all appended to Q_l. Now Q_l is : {Q_l}')
@@ -103,15 +119,17 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
                             marks[p_prime] = 1
                             Q_l.appendleft(p_prime)
                             print(f'node {p_prime} marked and appended to Q_l')
-                            distances.appendleft(dists[seed, p_prime])
+                            # distances.appendleft(dists[p_prime, seed])
+                            predecessors[p_prime] = p
+                            distances.appendleft(compute_dist(p_prime, seed, dists, predecessors))
                         else:
                             print(f'node {p_prime} accepted as adjacent to {p} but it is marked')
                     print(f'adjcent nodes to {p} all appended to Q_l. Now Q_l is : {Q_l}')
 
-                    graph_dict = {'marks':marks, 'S':S, 'graph_adj':adj_matrix, 'indices':indices}
+                    graph_dict = {'marks':marks, 'S':S, 'graph_adj':adj_matrix, 'indices':indices, 'seed':V_set[seed]}
                     with open(save_graphPath, 'wb') as graph_file:
                         pickle.dump(graph_dict, graph_file)
-                    sleep(0.5)
+                    # sleep(0.5)
 
                 else:
                     print(f'distance from node {p} to seed {seed} is: {temp_dist} above the threshold {r}')
@@ -123,9 +141,6 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
                         print(f'nodes {V_prime} are out of S')
                         ommited = list(S-{Vc})
                         print(f'nodes {ommited} ommited from V except geocenter {Vc}')
-    #                     mask = np.ones(indices.shape[0], dtype=bool)
-    #                     mask[ommited] = False
-    #                     indices = indices[mask]
                         indices = indices[~np.isin(indices, ommited)]
                         adj_matrix[:, ommited] = 0
                         adj_matrix[ommited] = 0
@@ -140,10 +155,10 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
                     else:
                         print(f'number of nodes in S are: {count} below the threshold {delta}')
 
-                    graph_dict = {'marks':marks, 'S':S, 'graph_adj':adj_matrix, 'indices':indices}
+                    graph_dict = {'marks':marks, 'S':S, 'graph_adj':adj_matrix, 'indices':indices, 'seed':V_set[seed]}
                     with open(save_graphPath, 'wb') as graph_file:
                         pickle.dump(graph_dict, graph_file)
-                    sleep(0.5)
+                    # sleep(0.5)
 
                     # eddited on the original algorithm
                     all_marked = all_marked.union(set(np.where(marks==1)[0]))
@@ -171,9 +186,11 @@ def from_roadTree(V_set, adj_matrix, dists, r=0.0010, delta=6, save_graphPath='.
 if __name__=='__main__':
     np.random.seed(123456)
     traj_file = './data-test/trajectories/trajs.shp'
+    match_file = './data-test/mr.csv'
+    unmatch = True
     Rv = 0.00015
     Rc = 0.0009
-    V_set, adj_matrix, dists, _ = gen_cobweb(traj_file, Rv, Rc)
+    V_set, adj_matrix, dists, _ = gen_cobweb(traj_file, Rv, Rc, unmatch, match_file)
     r = 0.0010
     delta = 6
     save_graphPath = '/home/peyman/Documents/projects/balad/codes/test/graph.pkl'
