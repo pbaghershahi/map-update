@@ -4,9 +4,12 @@ from math import atan2, sqrt, ceil, pi, fmod
 import sys, getopt, os
 from location import TripLoader
 from pylibs import spatialfunclib
+import matplotlib.pyplot as plt
 from itertools import tee
+from PIL import Image
 import numpy as np
 import sqlite3
+import imageio
 
 ##
 ## important parameters
@@ -68,14 +71,16 @@ class KDE:
         
         diff_lat = max_lat - min_lat
         diff_lon = max_lon - min_lon
-        
+
+
         #print min_lat, min_lon, max_lat, max_lon
-        
+
         width = int(diff_lon * spatialfunclib.METERS_PER_DEGREE_LONGITUDE / cell_size)
         height = int(diff_lat * spatialfunclib.METERS_PER_DEGREE_LATITUDE / cell_size)
         yscale = height / diff_lat # pixels per lat
         xscale = width / diff_lon # pixels per lon
-        
+
+        print(min_lat, max_lat, min_lon, max_lon, width, height)
         # aggregate intensity map for all traces
         # themap = cv2.CreateMat(height,width,cv2.cv2_16UC1)
         themap = np.zeros((height, width), np.uint16)
@@ -103,12 +108,14 @@ class KDE:
             # temp16 = np.zeros((height, width), np.uint16)
             
             for (orig, dest) in pairwise(trip.locations):
+                # print(f'GPS point: {orig.latitude, orig.longitude, dest.latitude, dest.longitude}')
                 oy = height - int(yscale * (orig.latitude - min_lat))
                 ox = int(xscale * (orig.longitude - min_lon))
                 dy = height - int(yscale * (dest.latitude - min_lat))
                 dx = int(xscale * (dest.longitude - min_lon))
                 # cv2.Line(temp, (ox, oy), (dx, dy), (32), 1, cv2.cv2_AA)
                 cv2.line(temp, (ox, oy), (dx, dy), 32, 1)
+                # print(f'GPS line: {ox} {oy} {dx} {dy}')
 
             # accumulate trips into themap
             # cv2.ConvertScale(temp,temp16,1,0)
@@ -116,7 +123,7 @@ class KDE:
             # cv2.Add(themap,temp16,themap)
             temp16 = np.uint16(temp)
             themap = cv2.add(themap, temp16, themap)
-        
+
         # lines = cv2.CreateMat(height,width,cv2.cv2_8U)
         # cv2.SetZero(lines)
         lines = np.zeros((height, width), np.uint8)
@@ -153,8 +160,12 @@ class KDE:
         # # create the mask and compute the contour
         # cv2.Smooth(themap, themap, cv2.cv2_GAUSSIAN, gaussian_blur, gaussian_blur)
         blur = cv2.GaussianBlur(themap, (gaussian_blur, gaussian_blur), 0)
-        cv2.imwrite("kde.png", blur)
-        
+        # cv2.imwrite("kde.png", blur.astype(np.uint8))
+        imageio.imwrite('kde.png', blur)
+        # write_png('kde.png', blur)
+        # im = Image.fromarray(blur)
+        # im.save("kde.png")
+
         print("done.")
         print("\nKDE generation complete.")
 

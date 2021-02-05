@@ -21,26 +21,27 @@ class GrayscaleSkeleton:
         pass
 
     def skeletonize(self, image):
-        image = grey_closing(image, footprint=circle(8), mode='constant', cval=0.0)
-        image = add_zero_mat(image)
-        prev_binary_image = np.zeros_like(image)
+        out_image = grey_closing(image, footprint=circle(8), mode='constant', cval=0.0)
+        out_image = add_zero_mat(out_image)
+        prev_binary_image = np.zeros_like(out_image)
 
-        image_bit_depth = (image.dtype.itemsize * 8) / 2
+        image_bit_depth = (out_image.dtype.itemsize * 8) / 2
         print("image_bit_depth: " + str(image_bit_depth))
 
         #image_thresholds = range(2**image_bit_depth,-1,-16)
-        image_thresholds = [2**x for x in range(image_bit_depth, 3, -1)] + list(range(15, 0, -1))
+        image_thresholds = [2**x for x in range(int(image_bit_depth), 3, -1)] + list(range(15, 0, -1))
         print("image_thresholds: " + str(image_thresholds))
 
         for curr_threshold in image_thresholds:
             print("curr_threshold: " + str(curr_threshold))
 
             # curr_thresh_image = threshold(image, curr_threshold)
-            curr_thresh_image = np.clip(image, 0, curr_threshold)
-
+            curr_thresh_image = np.clip(out_image, 0, curr_threshold)
             curr_binary_image = curr_thresh_image.astype(np.bool).astype(np.int)
+            # print('here before binary')
             # imsave(skeleton_images_path + "binary_" + str(curr_threshold) + ".png", curr_binary_image)
             imageio.imwrite(skeleton_images_path + "binary_" + str(curr_threshold) + ".png", curr_binary_image)
+            # print('here after binary')
 
             curr_sum_image = (prev_binary_image + curr_binary_image)
             curr_skeleton_image = self.thin_pixels(curr_sum_image)
@@ -58,27 +59,28 @@ class GrayscaleSkeleton:
         neighbors = nd.convolve((image > 0).astype(np.int), [[1, 1, 1], [1, 0, 1], [1, 1, 1]], mode='constant', cval=0.0)
         fg_pixels = np.where((image == 1) & (neighbors >= 2) & (neighbors <= 6))
         check_pixels = list(zip(fg_pixels[0], fg_pixels[1]))
-
+        out_image = image
         while len(check_pixels) > 0:
-            print(len(check_pixels))
-            image, sub1_check_pixels = self.parallel_sub(
-                subiterations.first_subiteration, image, check_pixels
+            # print(len(check_pixels))
+            out_image, sub1_check_pixels = self.parallel_sub(
+                subiterations.first_subiteration, out_image, check_pixels
             )
-            image, sub2_check_pixels = self.parallel_sub(
-                subiterations.second_subiteration, image, list(set(check_pixels + sub1_check_pixels))
+            out_image, sub2_check_pixels = self.parallel_sub(
+                # subiterations.second_subiteration, image, list(set(check_pixels + sub1_check_pixels))
+                subiterations.second_subiteration, out_image, list(set(check_pixels + sub1_check_pixels))
             )
 
             check_pixels = list(set(sub1_check_pixels+sub2_check_pixels))
 
         #Todo: check the following lines for indentation and
         # usage of neighbors and check for logic
-        neighbors = nd.convolve(image>0,[[1,1,1],[1,0,1],[1,1,1]],mode='constant',cval=0.0)
-        fg_pixels = np.where(image==1)
+        neighbors = nd.convolve(out_image>0,[[1,1,1],[1,0,1],[1,1,1]],mode='constant',cval=0.0)
+        fg_pixels = np.where(out_image==1)
         check_pixels = list(zip(fg_pixels[0],fg_pixels[1]))
         # image, _ = self.parallel_sub(self.empty_pools, image, check_pixels)
-        image_out, _ = self.parallel_sub(self.empty_pools, image, check_pixels)
+        out_image, _ = self.parallel_sub(self.empty_pools, out_image, check_pixels)
         # return image
-        return image_out
+        return out_image
 
     def parallel_sub(self, sub_function, image, fg_pixels):
         manager = Manager()
@@ -97,87 +99,87 @@ class GrayscaleSkeleton:
         for x, y in zero_pixels:
             image[x][y] = 0
 
-        return image, next_pixels
+        # return image, next_pixels
+        return image, list(next_pixels)
 
-    def PRE_first_subiteration(self, curr_image, fg_pixels):
-        zero_pixels = {}
-	next_pixels = {}
-
-        for (i, j) in fg_pixels:
-            if curr_image[i][j] != 1: continue
-
-            p2 = curr_image[i - 1][j]
-            p3 = curr_image[i - 1][j + 1]
-            p4 = curr_image[i][j + 1]
-            p5 = curr_image[i + 1][j + 1]
-            p6 = curr_image[i + 1][j]
-            p7 = curr_image[i + 1][j - 1]
-            p8 = curr_image[i][j - 1]
-            p9 = curr_image[i - 1][j - 1]
-
-            if (2 <= (bool(p2) + bool(p3) + bool(p4) + bool(p5) + bool(p6) + bool(p7) + bool(p8) + bool(p9)) <= 6 and
-                (p2 * p4 * p6 == 0) and
-		(p4 * p6 * p8 == 0)):
-                if ((not p2 and p3) + (not p3 and p4) + (not p4 and p5) + (not p5 and p6) + (not p6 and p7) + (not p7 and p8) + (not p8 and p9) + (not p9 and p2) == 1):
-                    zero_pixels[(i,j)] = 0
-                    if p2 == 1:
-                        next_pixels[(i-1,j)]=0
-                    if p3 == 1:
-			next_pixels[(i-1,j+1)]=0
-                    if p4 == 1:
-			next_pixels[(i,j+1)]=0
-                    if p5 == 1:
-			next_pixels[(i+1,j+1)]=0
-                    if p6 == 1:
-			next_pixels[(i+1,j)]=0
-                    if p7 == 1:
-			next_pixels[(i+1,j-1)]=0
-                    if p8 == 1:
-			next_pixels[(i,j-1)]=0
-                    if p9 == 1:
-			next_pixels[(i-1,j-1)]=0
-
-        return list(zero_pixels.keys()), list(next_pixels.keys())
-
-    def PRE_second_subiteration(self, curr_image, fg_pixels):
-        zero_pixels = {}
-	next_pixels = {}
-
-        for (i, j) in fg_pixels:
-            if curr_image[i][j] != 1: continue
-
-            p2 = curr_image[i - 1][j]
-            p3 = curr_image[i - 1][j + 1]
-            p4 = curr_image[i][j + 1]
-            p5 = curr_image[i + 1][j + 1]
-            p6 = curr_image[i + 1][j]
-            p7 = curr_image[i + 1][j - 1]
-            p8 = curr_image[i][j - 1]
-            p9 = curr_image[i - 1][j - 1]
-
-            if (2 <= (bool(p2) + bool(p3) + bool(p4) + bool(p5) + bool(p6) + bool(p7) + bool(p8) + bool(p9)) <= 6 and
-                (p2 * p4 * p8 == 0) and
-		(p2 * p6 * p8 == 0)):
-                if ((not p2 and p3) + (not p3 and p4) + (not p4 and p5) + (not p5 and p6) + (not p6 and p7) + (not p7 and p8) + (not p8 and p9) + (not p9 and p2) == 1):
-                    zero_pixels[(i,j)] = 0
-                    if p2 == 1:
-			next_pixels[(i-1,j)]=0
-                    if p3 == 1:
-			next_pixels[(i-1,j+1)]=0
-                    if p4 == 1:
-			next_pixels[(i,j+1)]=0
-                    if p5 == 1:
-			next_pixels[(i+1,j+1)]=0
-                    if p6 == 1:
-			next_pixels[(i+1,j)]=0
-                    if p7 == 1:
-			next_pixels[(i+1,j-1)]=0
-                    if p8 == 1:
-			next_pixels[(i,j-1)]=0
-                    if p9 == 1:
-			next_pixels[(i-1,j-1)]=0
-
-        return list(zero_pixels.keys()), list(next_pixels.keys())
+    # def PRE_first_subiteration(self, curr_image, fg_pixels):
+    #     zero_pixels = {}
+    #     next_pixels = {}
+    #
+    #     for (i, j) in fg_pixels:
+    #         if curr_image[i][j] != 1: continue
+    #
+    #         p2 = curr_image[i - 1][j]
+    #         p3 = curr_image[i - 1][j + 1]
+    #         p4 = curr_image[i][j + 1]
+    #         p5 = curr_image[i + 1][j + 1]
+    #         p6 = curr_image[i + 1][j]
+    #         p7 = curr_image[i + 1][j - 1]
+    #         p8 = curr_image[i][j - 1]
+    #         p9 = curr_image[i - 1][j - 1]
+    #
+    #         if (2 <= (bool(p2) + bool(p3) + bool(p4) + bool(p5) + bool(p6) + bool(p7) + bool(p8) + bool(p9)) <= 6 and
+    #             (p2 * p4 * p6 == 0) and
+	# 	(p4 * p6 * p8 == 0)):
+    #             if ((not p2 and p3) + (not p3 and p4) + (not p4 and p5) + (not p5 and p6) + (not p6 and p7) + (not p7 and p8) + (not p8 and p9) + (not p9 and p2) == 1):
+    #                 zero_pixels[(i,j)] = 0
+    #                 if p2 == 1:
+    #                     next_pixels[(i-1,j)]=0
+    #                 if p3 == 1:
+	# 		next_pixels[(i-1,j+1)]=0
+    #                 if p4 == 1:
+	# 		next_pixels[(i,j+1)]=0
+    #                 if p5 == 1:
+	# 		next_pixels[(i+1,j+1)]=0
+    #                 if p6 == 1:
+	# 		next_pixels[(i+1,j)]=0
+    #                 if p7 == 1:
+	# 		next_pixels[(i+1,j-1)]=0
+    #                 if p8 == 1:
+	# 		next_pixels[(i,j-1)]=0
+    #                 if p9 == 1:
+	# 		next_pixels[(i-1,j-1)]=0
+    #
+    #     return list(zero_pixels.keys()), list(next_pixels.keys())
+    #
+    # def PRE_second_subiteration(self, curr_image, fg_pixels):
+    #     zero_pixels = {}
+	# next_pixels = {}
+    #
+    #     for (i, j) in fg_pixels:
+    #         if curr_image[i][j] != 1: continue
+    #
+    #         p2 = curr_image[i - 1][j]
+    #         p3 = curr_image[i - 1][j + 1]
+    #         p4 = curr_image[i][j + 1]
+    #         p5 = curr_image[i + 1][j + 1]
+    #         p6 = curr_image[i + 1][j]
+    #         p7 = curr_image[i + 1][j - 1]
+    #         p8 = curr_image[i][j - 1]
+    #         p9 = curr_image[i - 1][j - 1]
+    #
+    #         if (2 <= (bool(p2) + bool(p3) + bool(p4) + bool(p5) + bool(p6) + bool(p7) + bool(p8) + bool(p9)) <= 6 and
+    #             (p2 * p4 * p8 == 0) and (p2 * p6 * p8 == 0)):
+    #             if ((not p2 and p3) + (not p3 and p4) + (not p4 and p5) + (not p5 and p6) + (not p6 and p7) + (not p7 and p8) + (not p8 and p9) + (not p9 and p2) == 1):
+    #                 zero_pixels[(i,j)] = 0
+    #                 if p2 == 1:
+	# 		next_pixels[(i-1,j)]=0
+    #                 if p3 == 1:
+	# 		next_pixels[(i-1,j+1)]=0
+    #                 if p4 == 1:
+	# 		next_pixels[(i,j+1)]=0
+    #                 if p5 == 1:
+	# 		next_pixels[(i+1,j+1)]=0
+    #                 if p6 == 1:
+	# 		next_pixels[(i+1,j)]=0
+    #                 if p7 == 1:
+	# 		next_pixels[(i+1,j-1)]=0
+    #                 if p8 == 1:
+	# 		next_pixels[(i,j-1)]=0
+    #                 if p9 == 1:
+	# 		next_pixels[(i-1,j-1)]=0
+    #
+    #     return list(zero_pixels.keys()), list(next_pixels.keys())
 
     def empty_pools(self, curr_image, fg_pixels):
         zero_pixels = {}
@@ -203,25 +205,25 @@ class GrayscaleSkeleton:
 def add_zero_mat(image):
     num_rows, num_cols = image.shape
 
-    image = np.insert(image, num_rows, np.zeros(num_cols, dtype=np.int), 0)
-    image = np.insert(image, 0, np.zeros(num_cols, dtype=np.int), 0)
+    out_image = np.insert(image, num_rows, np.zeros(num_cols, dtype=np.int), 0)
+    out_image = np.insert(out_image, 0, np.zeros(num_cols, dtype=np.int), 0)
 
-    num_rows, num_cols = image.shape
+    num_rows, num_cols = out_image.shape
 
-    image = np.insert(image, num_cols, np.zeros(num_rows, dtype=np.int), 1)
-    image = np.insert(image, 0, np.zeros(num_rows, dtype=np.int), 1)
+    out_image = np.insert(out_image, num_cols, np.zeros(num_rows, dtype=np.int), 1)
+    out_image = np.insert(out_image, 0, np.zeros(num_rows, dtype=np.int), 1)
 
-    return image
+    return out_image
 
 def remove_zero_mat(image):
     num_rows, num_cols = image.shape
 
-    image = np.delete(image, num_rows - 1, 0)
-    image = np.delete(image, 0, 0)
-    image = np.delete(image, num_cols - 1, 1)
-    image = np.delete(image, 0, 1)
+    out_image = np.delete(image, num_rows - 1, 0)
+    out_image = np.delete(out_image, 0, 0)
+    out_image = np.delete(out_image, num_cols - 1, 1)
+    out_image = np.delete(out_image, 0, 1)
 
-    return image
+    return out_image
 
 def circle(radius):
     x, y = np.mgrid[:(2 * radius) + 1, :(2 * radius) + 1]
@@ -236,7 +238,7 @@ if __name__ == '__main__':
     print("input filename: " + str(input_filename))
     print("output filename: " + str(output_filename))
 
-    input_kde = imread(input_filename)
+    input_kde = imageio.imread(input_filename)
 
     s = GrayscaleSkeleton()
 
@@ -245,4 +247,5 @@ if __name__ == '__main__':
     print("total elapsed time: " + str(time.time() - start_time) + " seconds")
 
     # toimage(skeleton, cmin=0, cmax=255).save(output_filename)
-    img = Image.fromarray(skeleton).save(output_filename)
+    # img = Image.fromarray(skeleton).save(output_filename)
+    imageio.imwrite(output_filename, skeleton)

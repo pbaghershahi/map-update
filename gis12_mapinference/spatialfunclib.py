@@ -35,7 +35,7 @@ def same_coords(a_lat, a_lon, b_lat, b_lon):
 def haversine_distance(xxx_todo_changeme, xxx_todo_changeme1):
     (a_lat, a_lon) = xxx_todo_changeme
     (b_lat, b_lon) = xxx_todo_changeme1
-    if (same_coords(a_lat, a_lon, b_lat, b_lon)):
+    if same_coords(a_lat, a_lon, b_lat, b_lon):
         return 0.0
     
     dLat = math.radians(b_lat - a_lat)
@@ -125,20 +125,20 @@ def vectorLen(x1,y1):
 
 def project_onto_segment(xxx_todo_changeme4, xxx_todo_changeme5):
     """ Version from Tomas Gerlich's match_lib"""
-    ((aX,aY),(bX,bY)) = xxx_todo_changeme4
-    (cX,cY) = xxx_todo_changeme5
-    if dotProduct(((bX-aX),(bY-aY)),((cX-aX),(cY-aY))) <= 0:
-	p = (aX,aY)
-    elif dotProduct(((aX-bX),(aY-bY)),((cX-bX),(cY-bY))) <= 0:
-	p = (bX,bY)
+    ((aX, aY), (bX, bY)) = xxx_todo_changeme4
+    (cX, cY) = xxx_todo_changeme5
+    if dotProduct(((bX-aX), (bY-aY)), ((cX-aX), (cY-aY))) <= 0:
+        p = (aX, aY)
+    elif dotProduct(((aX-bX), (aY-bY)), ((cX-bX), (cY-bY))) <= 0:
+        p = (bX, bY)
     else:
-        temp1 = dotProduct(((bX-aX),(bY-aY)),((cX-aX),(cY-aY)))
-        b2Len = vectorLen(bX-aX,bY-aY)
+        temp1 = dotProduct(((bX-aX), (bY-aY)), ((cX-aX), (cY-aY)))
+        b2Len = vectorLen(bX-aX, bY-aY)
         b1Len = temp1 / b2Len
         fraction = b1Len / b2Len
         x = aX + fraction * (bX-aX)
         y = aY + fraction * (bY-aY)    
-        p = (x,y)		
+        p = (x, y)
     return p
 
 
@@ -178,7 +178,7 @@ def projection_onto_line(a_lat, a_lon, b_lat, b_lon, c_lat, c_lon, debug=False):
     cproj_angle = path_bearing(c_lat, c_lon, projected_point[0], projected_point[1])
     if (debug): print("cproj_angle: " + str(cproj_angle) + " degrees")
     
-    return (projected_point, fraction_along, cproj_length)
+    return projected_point, fraction_along, cproj_length
 
     
 

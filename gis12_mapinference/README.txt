@@ -8,6 +8,7 @@ To re-produce the output from our paper, "Map Inference in the Face of Noise and
 1) Create KDE (kde.png) from trips
 
 python kde.py -p trips/trips_1m/
+python kde.py -p trips/self-trips/
 
 
 2) Create grayscale skeleton (skeleton.png) from KDE
@@ -23,11 +24,13 @@ python graph_extract.py skeleton.png bounding_boxes/bounding_box_1m.txt skeleton
 4) Map-match trips onto map database
 
 python graphdb_matcher_run.py -d skeleton_maps/skeleton_map_1m.db -t trips/trips_1m/ -o trips/matched_trips_1m/
+python graphdb_matcher_run.py -d skeleton_maps/skeleton_map_1m.db -t trips/self-trips/ -o trips/self-matches/
 
 
 5) Prune map database with map-matched trips, producing pruned map database (skeleton_maps/skeleton_map_1m_mm1.db)
 
 python process_map_matches.py -d skeleton_maps/skeleton_map_1m.db -t trips/matched_trips_1m/ -o skeleton_maps/skeleton_map_1m_mm1.db
+python process_map_matches.py -d skeleton_maps/skeleton_map_1m.db -t trips/self-matches/ -o skeleton_maps/skeleton_map_1m_mm1.db
 
 
 6) Refine topology of pruned map, producing refined map (skeleton_maps/skeleton_map_1m_mm1_tr.db)
@@ -38,11 +41,13 @@ python refine_topology.py -d skeleton_maps/skeleton_map_1m_mm1.db -t skeleton_ma
 7) Map-match trips onto refined map
 
 python graphdb_matcher_run.py -d skeleton_maps/skeleton_map_1m_mm1_tr.db -t trips/trips_1m/ -o trips/matched_trips_1m_mm1_tr/
+python graphdb_matcher_run.py -d skeleton_maps/skeleton_map_1m_mm1_tr.db -t trips/self-trips/ -o trips/self-matches-2/
 
 
 8) Prune refined map with map-matched trips, producing pruned refined map database (skeleton_maps/skeleton_map_1m_mm2.db)
 
 python process_map_matches.py -d skeleton_maps/skeleton_map_1m_mm1_tr.db -t trips/matched_trips_1m_mm1_tr/ -o skeleton_maps/skeleton_map_1m_mm2.db
+python process_map_matches.py -d skeleton_maps/skeleton_map_1m_mm1_tr.db -t trips/self-matches-2/ -o skeleton_maps/skeleton_map_1m_mm2.db
 
 
 9) Output pruned refined map database for visualization (final_map.txt)

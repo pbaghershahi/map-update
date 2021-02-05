@@ -5,19 +5,20 @@ import sys
 import collections
 
 class Viterbi:    
-    def __init__(self, hmm, emission_probability, priors=None, constraint_length=10, candidate_states=None, smallV=0.00000000001):
-        """ Sets the stage for running the viterbi algorithm.
-        hmm -- a map { state_id : [(next_state1, probability), (next_state2, probability)]}
-        priors -- a map { state_id : probability } where the sum of probabilities=1
-        emission_probability -- a function(state_id, observation) -> [0..1]
-        constraint_length -- how many steps into the past to consider
-        candidate_states -- a function f(obs) that returns a set of state ids given an observation
+    def __init__(self, hmm, emission_probability, priors=None, constraint_length=10, candidate_states=None, smallV=0.00000000001, counter=0, len_sum=0):
+        # note: Sets the stage for running the viterbi algorithm.
+        #  hmm -- a map { state_id : [(next_state1, probability), (next_state2, probability)]}
+        #  priors -- a map { state_id : probability } where the sum of probabilities=1
+        #  emission_probability -- a function(state_id, observation) -> [0..1]
+        #  constraint_length -- how many steps into the past to consider
+        #  candidate_states -- a function f(obs) that returns a set of state ids given an observation
 
-        """
-        self.hmm = hmm;
-        
-        self.emission_probability = emission_probability;
-        self.constraint_length = constraint_length;        
+        self.counter = counter
+        self.len_sum = len_sum
+
+        self.hmm = hmm
+        self.emission_probability = emission_probability
+        self.constraint_length = constraint_length
         if candidate_states:
             self.candidate_states = candidate_states
         else:
@@ -26,7 +27,7 @@ class Viterbi:
         if not priors:
             self.priors = {}
             for state in self.hmm:
-                self.priors[state]=1.0/len(self.hmm)
+                self.priors[state] = 1.0/len(self.hmm)
         else:
             self.priors = priors
 
@@ -35,10 +36,10 @@ class Viterbi:
         
         for from_state in hmm:
             for to_state, probability in hmm[from_state]:                
-                if not to_state in self.incoming:
+                if to_state not in self.incoming:
                     self.incoming[to_state]={}
                 self.incoming[to_state][from_state] = probability
-        
+
         self.smallV = smallV
 
     def step(self, obs, V=None, path={}):
@@ -46,13 +47,14 @@ class Viterbi:
 
         # if no priors are specified, make them uniform 
         if V == None:
-            V=dict(self.priors)
+            V = dict(self.priors)
         newV = {}
         newPath = {}
 
         # states that the current observation could in some way support
         state_eps = [(state, self.emission_probability(state, obs)) for state in self.candidate_states(obs)]
-        nonzero_eps = [state_ep for state_ep in state_eps if state_ep[1]>0]
+        nonzero_eps = [state_ep for state_ep in state_eps if state_ep[1] > 0]
+
 
         # for each candidate state, calculate its maximum probability path
         for to_state, emission_probability in nonzero_eps:
@@ -68,15 +70,19 @@ class Viterbi:
             from_probs = [(V[from_state_transition_probability[0]]*emission_probability*from_state_transition_probability[1], from_state_transition_probability[0]) for from_state_transition_probability in nonzero_incoming]
             
             if len(from_probs) > 0:
-                (max_prob,max_from) = max(from_probs)
-                newV[to_state]=max_prob
-                
+                # print(from_probs)
+                max_prob, max_from = max(from_probs, key=lambda x: x[0])
+                newV[to_state] = max_prob
+
                 # make sure we don't grow paths beyond the constraint length
-                if not max_from in path:
-                    path[max_from]=[];
+                if max_from not in path:
+                    path[max_from] = []
                 if len(path[max_from]) == self.constraint_length:
-                    path[max_from].pop(0)                    
-                        
+                    path[max_from].pop(0)
+                self.counter += 1
+                self.len_sum += len(path[max_from])
+                # print(self.counter, self.len_sum/self.counter, end='\r')
+
                 newPath[to_state] = path[max_from] + [to_state]
         
         newV = self.normalize(newV)

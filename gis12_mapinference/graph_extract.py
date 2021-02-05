@@ -79,7 +79,7 @@ class MainCrossing:
 class Graph:
     def __init__(self):
         pass
-    
+
     def extract(self, skeleton, density_estimate, output_filename):
         skeleton = self.identify_crossing_points(skeleton)
         main_crossings, segments = self.find_main_crossings_and_segments(skeleton)
@@ -174,7 +174,7 @@ class Graph:
             
             if head_node not in nodes:
                 nodes[head_node] = Node(
-                    pixels_to_coords(head_node), density_map[density_estimate[segment[0][0], segment[0][1]] - 1]
+                    pixels_to_coords(head_node), density_map[int(density_estimate[segment[0][0], segment[0][1]] - 1)]
                 )
             
             new_segment = [nodes[head_node]]
@@ -183,7 +183,7 @@ class Graph:
             for i in range(1, len(segment) - 1):
                 if segment[i] not in nodes:
                     nodes[segment[i]] = Node(
-                        pixels_to_coords(segment[i]), density_map[density_estimate[segment[i][0], segment[i][1]] - 1]
+                        pixels_to_coords(segment[i]), density_map[int(density_estimate[segment[i][0], segment[i][1]] - 1)]
                     )
                 
                 new_segment.append(nodes[segment[i]])
@@ -192,7 +192,7 @@ class Graph:
             
             if tail_node not in nodes:
                 nodes[tail_node] = Node(
-                    pixels_to_coords(tail_node), density_map[density_estimate[segment[-1][0], segment[-1][1]] - 1]
+                    pixels_to_coords(tail_node), density_map[int(density_estimate[segment[-1][0], segment[-1][1]] - 1)]
                 )
             
             new_segment.append(nodes[tail_node])
