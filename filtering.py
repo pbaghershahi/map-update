@@ -22,7 +22,7 @@ def time_preprocess(trip, time_threshold=20):
     filtered_trip = []
     counter = 0
     for org, dest in pairwise(trip):
-        delta = (dest[2]-org[2]).seconds
+        delta = (dest[3]-org[3]).seconds
         filtered_trip.append(org)
         counter += 1
         if delta > time_threshold:
@@ -45,7 +45,7 @@ def dist_measure(x, y):
 
 
 def spd_measure(x, y):
-    return np.sqrt(((x[0]-y[0])*METERS_PER_DEGREE_LONGITUDE)**2 + ((x[1]-y[1])*METERS_PER_DEGREE_LATITUDE)**2)/max((y[2]-x[2]).seconds, 1)
+    return np.sqrt(((x[0]-y[0])*METERS_PER_DEGREE_LONGITUDE)**2 + ((x[1]-y[1])*METERS_PER_DEGREE_LATITUDE)**2)/max((y[3]-x[3]).seconds, 1)
 
 
 def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=5):
@@ -111,6 +111,7 @@ def modify_data(file_path, boundary, route_mapping, **kwargs):
             temp_trip.append([
                 point.x,
                 point.y,
+                data.iloc[i]['altitude'],
                 datetime.datetime.fromtimestamp(int(data.iloc[i]['timestamp']) / 1000),
                 data.iloc[i]['bearing'],
                 data.iloc[i]['speed']
@@ -163,7 +164,7 @@ def load_data(file_path, boundary, file_dist):
             file_name = file_dist + '/' + prefix + '/' + file.split('.snappy')[0]+'.csv'
             with open(file_name, 'w') as csv_file:
                 csv_writer = csv.writer(csv_file, delimiter=',', lineterminator='\n')
-                csv_writer.writerow(['route_id', 'longitude', 'latitude', 'timestamp', 'bearing', 'speed'])
+                csv_writer.writerow(['route_id', 'longitude', 'latitude', 'altitude', 'timestamp', 'bearing', 'speed'])
                 for trajectory in trajectories:
                     for point in trajectory[1]:
                         csv_writer.writerow([trajectory[0]]+point)
@@ -181,17 +182,19 @@ def make_trajs(file_path):
             if not file.endswith('.csv'):
                 continue
             data = pd.read_csv(os.path.join(file_path, dir_name, file), sep=',', header=0, engine='python')
+            altitudes = []
             line = []
             bearings = []
             speeds = []
             for i in range(len(data)-1):
                 point = data.iloc[i]
                 line.append((point['longitude'], point['latitude']))
+                altitudes.append(str(point['altitude']))
                 bearings.append(str(point['bearing']))
                 speeds.append(str(point['speed']))
                 if point['route_id'] != data.iloc[i+1]['route_id']:
                     traj_line = LineString(line)
-                    trajectories.append((point['route_id'], traj_line, ','.join(bearings), ','.join(speeds)))
+                    trajectories.append((point['route_id'], traj_line, ','.join(altitudes), ','.join(bearings), ','.join(speeds)))
                     line = []
                     bearings = []
                     speeds = []
@@ -200,6 +203,6 @@ def make_trajs(file_path):
 
 def trajToShape(source_path, dist_path):
     trajectories = make_trajs(source_path)
-    df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'bearing', 'speed'])
+    df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'latitude', 'bearing', 'speed'])
     df = gp.GeoDataFrame(df, geometry='geometry')
     df.to_file(dist_path, driver='ESRI Shapefile')
