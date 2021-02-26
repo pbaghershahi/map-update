@@ -104,8 +104,7 @@ def destination_point(a_lat, a_lon, bearing, distance):
 def point_along_line(a_lat, a_lon, b_lat, b_lon, fraction_along):
     c_lon = a_lon + (fraction_along * (b_lon - a_lon))
     c_lat = a_lat + (fraction_along * (b_lat - a_lat))
-    
-    return (c_lat, c_lon)
+    return c_lat, c_lon
 
 def distance_to_segment(segment,point):
     """ This should work fine for small distances. Not sure about longer distances 

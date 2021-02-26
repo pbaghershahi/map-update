@@ -9,27 +9,27 @@ import numpy as np
 # matches = matches[matches.cpath.isnull()]
 # filtered_edges = gp.read_file('./ground-map/map/filtered_edges.shp')
 # filtered_edges.set_index('id', drop=True, inplace=True)
-# all_edges = gp.read_file('./ground-map/map/all_edges.shp')
-# all_edges.set_index('id', drop=True, inplace=True)
-trajectories = gp.read_file('./data/trajectories/trajs.shp')
-trajectories.set_index('id', drop=True, inplace=True)
+all_edges = gp.read_file('./ground-map/map/all_edges.shp')
+all_edges.set_index('id', drop=True, inplace=True)
+# trajectories = gp.read_file('./data/trajectories/trajs.shp')
+# trajectories.set_index('id', drop=True, inplace=True)
 # trajectories = trajectories[trajectories.index.isin(matches.index)]
 
-# all_edges.plot()
+all_edges.plot()
 # filtered_edges.plot()
 #
-for index, row in trajectories.iterrows():
-    try:
-        traj = trajectories.loc[index]['geometry']
-        a = np.array(traj.coords)[:, 0]
-        b = np.array(traj.coords)[:, 1]
-        plt.plot(a, b, 'r')
-    except:
+# for index, row in trajectories.iterrows():
+#     try:
+#         traj = trajectories.loc[index]['geometry']
+#         a = np.array(traj.coords)[:, 0]
+#         b = np.array(traj.coords)[:, 1]
+#         plt.plot(a, b, 'r')
+#     except:
         # for row in traj:
         #     a = np.array(row.coords)[:, 0]
         #     b = np.array(row.coords)[:, 1]
         #     plt.plot(a, b, 'r')
-        continue
+        # continue
 
 # ploted_filtered_edges = []
 #
@@ -52,5 +52,5 @@ for index, row in trajectories.iterrows():
 #         plt.plot(a, b, c='k')
 
 
-plt.savefig('matches.png')
+# plt.savefig('matches.png')
 plt.show()

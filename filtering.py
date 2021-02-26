@@ -156,7 +156,7 @@ def load_data(file_path, boundary, file_dist):
             os.makedirs(file_dist + '/' + prefix)
         files = sorted(os.listdir(os.path.join(file_path, dir_name)))
         for file in files:
-            if not file.endswith('.snappy'):
+            if not file.endswith('.parquet'):
                 continue
             trajectories, route_mapping = modify_data(os.path.join(file_path, dir_name, file), boundary, route_mapping)
             if not trajectories:

@@ -454,9 +454,35 @@ class Graph:
                 print("\r" + str(curr_count) + "/" + str(total_count) + "... ")
             curr_count += 1
             
-            p = [skeleton[i - 1][j], skeleton[i - 1][j + 1], skeleton[i][j + 1], skeleton[i + 1][j + 1], skeleton[i + 1][j], skeleton[i + 1][j - 1], skeleton[i][j - 1], skeleton[i - 1][j - 1], skeleton[i - 2][j], skeleton[i - 2][j + 1], skeleton[i - 2][j + 2], skeleton[i - 1][j + 2], skeleton[i][j + 2], skeleton[i + 1][j + 2], skeleton[i + 2][j + 2], skeleton[i + 2][j + 1], skeleton[i + 2][j], skeleton[i + 2][j - 1], skeleton[i + 2][j - 2], skeleton[i + 1][j - 2], skeleton[i][j - 2], skeleton[i - 1][j - 2], skeleton[i - 2][j - 2], skeleton[i - 2][j - 1]]
+            p = [
+                skeleton[i - 1][j], skeleton[i - 1][j + 1], skeleton[i][j + 1],
+                skeleton[i + 1][j + 1], skeleton[i + 1][j], skeleton[i + 1][j - 1],
+                skeleton[i][j - 1], skeleton[i - 1][j - 1], skeleton[i - 2][j],
+                skeleton[i - 2][j + 1], skeleton[i - 2][j + 2], skeleton[i - 1][j + 2],
+                skeleton[i][j + 2], skeleton[i + 1][j + 2], skeleton[i + 2][j + 2],
+                skeleton[i + 2][j + 1], skeleton[i + 2][j], skeleton[i + 2][j - 1],
+                skeleton[i + 2][j - 2], skeleton[i + 1][j - 2], skeleton[i][j - 2],
+                skeleton[i - 1][j - 2], skeleton[i - 2][j - 2], skeleton[i - 2][j - 1]
+            ]
             
-            fringe = [bool(p[8] and bool(p[7] or p[0] or p[1])), bool(p[9] and bool(p[0] or p[1])), bool(p[10] and p[1]), bool(p[11] and bool(p[1] or p[2])), bool(p[12] and bool(p[1] or p[2] or p[3])), bool(p[13] and bool(p[2] or p[3])), bool(p[14] and p[3]), bool(p[15] and bool(p[3] or p[4])), bool(p[16] and bool(p[3] or p[4] or p[5])), bool(p[17] and bool(p[4] or p[5])), bool(p[18] and p[5]), bool(p[19] and bool(p[5] or p[6])), bool(p[20] and bool(p[5] or p[6] or p[7])), bool(p[21] and bool(p[6] or p[7])), bool(p[22] and p[7]), bool(p[23] and bool(p[7] or p[0]))]
+            fringe = [
+                bool(p[8] and bool(p[7] or p[0] or p[1])),
+                bool(p[9] and bool(p[0] or p[1])),
+                bool(p[10] and p[1]),
+                bool(p[11] and bool(p[1] or p[2])),
+                bool(p[12] and bool(p[1] or p[2] or p[3])),
+                bool(p[13] and bool(p[2] or p[3])),
+                bool(p[14] and p[3]),
+                bool(p[15] and bool(p[3] or p[4])),
+                bool(p[16] and bool(p[3] or p[4] or p[5])),
+                bool(p[17] and bool(p[4] or p[5])),
+                bool(p[18] and p[5]),
+                bool(p[19] and bool(p[5] or p[6])),
+                bool(p[20] and bool(p[5] or p[6] or p[7])),
+                bool(p[21] and bool(p[6] or p[7])),
+                bool(p[22] and p[7]),
+                bool(p[23] and bool(p[7] or p[0]))
+            ]
             
             connected_component_count = 0
             for k in range(0, len(fringe)):

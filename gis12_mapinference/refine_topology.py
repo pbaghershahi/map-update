@@ -7,14 +7,16 @@ class RefineTopology:
     def __init__(self, graphdb_filename):
         self.graphdb = StreetMap()
         self.graphdb.load_graphdb(graphdb_filename)
-    
+
+    # fixme: all deletes are passed to try and except, check if is it correct?
     def process(self, matched_traces_filename, output_db_filename):
         # sys.stdout.write("Loading matched traces... ")
         # sys.stdout.flush()
         print("Loading matched traces... ")
         
+        # matched_traces_file = open(matched_traces_filename, 'r')
         matched_traces_file = open(matched_traces_filename, 'r')
-        
+
         all_segment_obs = {} # indexed by segment_id
         
         prev_segment_id = None
@@ -131,7 +133,10 @@ class RefineTopology:
                         edge.out_node = new_intersection
                         print("adding key " + str((neighbor.id, new_intersection.id)) + ": " + str((neighbor, new_intersection)) + " = " + str(edge))
                         self.graphdb.edge_lookup_table[(neighbor, new_intersection)] = edge
-                        del self.graphdb.edge_lookup_table[edge_key]
+                        try:
+                            del self.graphdb.edge_lookup_table[edge_key]
+                        except:
+                            print(f'Edge key {edge_key} does not exists already!')
                         
                         neighbor.out_nodes.remove(segment_head_node)
                         neighbor.out_nodes.append(new_intersection)
@@ -146,7 +151,10 @@ class RefineTopology:
                         edge.in_node = new_intersection
                         print("adding key " + str((new_intersection.id, neighbor.id)) + ": " + str((new_intersection, neighbor)) + " = " + str(edge))
                         self.graphdb.edge_lookup_table[(new_intersection, neighbor)] = edge
-                        del self.graphdb.edge_lookup_table[edge_key]
+                        try:
+                            del self.graphdb.edge_lookup_table[edge_key]
+                        except:
+                            print(f'Edge key {edge_key} does not exists already!')
                         
                         neighbor.in_nodes.remove(segment_head_node)
                         neighbor.in_nodes.append(new_intersection)
@@ -167,7 +175,10 @@ class RefineTopology:
                         edge.out_node = new_intersection
                         print("adding key " + str((neighbor.id, new_intersection.id)) + ": " + str((neighbor, new_intersection)) + " = " + str(edge))
                         self.graphdb.edge_lookup_table[(neighbor, new_intersection)] = edge
-                        del self.graphdb.edge_lookup_table[edge_key]
+                        try:
+                            del self.graphdb.edge_lookup_table[edge_key]
+                        except:
+                            print(f'Edge key {edge_key} does not exists already!')
                         
                         neighbor.out_nodes.remove(segment_tail_node)
                         neighbor.out_nodes.append(new_intersection)
@@ -182,7 +193,10 @@ class RefineTopology:
                         edge.in_node = new_intersection
                         print("adding key " + str((new_intersection.id, neighbor.id)) + ": " + str((new_intersection, neighbor)) + " = " + str(edge))
                         self.graphdb.edge_lookup_table[(new_intersection, neighbor)] = edge
-                        del self.graphdb.edge_lookup_table[edge_key]
+                        try:
+                            del self.graphdb.edge_lookup_table[edge_key]
+                        except:
+                            print(f'Edge key {edge_key} does not exists already!')
                         
                         neighbor.in_nodes.remove(segment_tail_node)
                         neighbor.in_nodes.append(new_intersection)
@@ -198,7 +212,10 @@ class RefineTopology:
                 print("set touched edges: " + str(len(set(touched_edges))))
                 
                 if len(touched_edges) == 0:
-                    del self.graphdb.nodes[node_id - 1]
+                    try:
+                        del self.graphdb.nodes[node_id - 1]
+                    except:
+                        print(f'Node {node_id - 1} does not exists already!')
                     node_id -= 1
                     closed_segments_list.append(segment)
                     continue
@@ -259,16 +276,25 @@ class RefineTopology:
                         reciprocal_segment = self.graphdb.segment_lookup_table[reciprocal_segment_key]
                         
                         if (reciprocal_segment != segment) and (reciprocal_segment.id in self.graphdb.segments):
-                            del self.graphdb.segments[reciprocal_segment.id]
-                    
-                    del self.graphdb.segments[segment.id]
+                            try:
+                                del self.graphdb.segments[reciprocal_segment.id]
+                            except:
+                                print(f'Segments {reciprocal_segment.id} does not exists already!')
+
+                    try:
+                        del self.graphdb.segments[segment.id]
+                    except:
+                        print(f'Segments {segment.id} does not exists already!')
                 
                 else:
                     print("at least one trace failed! boo! :-(\n")
                     for edge in touched_edges:
                         print("delete " + str((edge.in_node.id, edge.out_node.id)) + ": " + str((edge.in_node, edge.out_node)) + " = " + str(edge))
-                        
-                        del self.graphdb.edge_lookup_table[(edge.in_node, edge.out_node)]
+
+                        try:
+                            del self.graphdb.edge_lookup_table[(edge.in_node, edge.out_node)]
+                        except:
+                            print(f'Edge key {(edge.in_node, edge.out_node)} does not exists already!')
                         self.graphdb.edge_lookup_table[edge.old_key] = edge
                         
                         if edge.old_key[0] == edge.in_node:
@@ -281,8 +307,10 @@ class RefineTopology:
                             edge.in_node = edge.old_key[0]
                         
                         #(edge.in_node, edge.out_node) = (edge.old_key[0], edge.old_key[1])
-                    
-                    del self.graphdb.nodes[node_id - 1]
+                    try:
+                        del self.graphdb.nodes[node_id - 1]
+                    except:
+                        print(f'Node {node_id - 1} does not exists already!')
                     node_id -= 1
                 
                 closed_segments_list.append(segment)

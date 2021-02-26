@@ -87,7 +87,8 @@ class MatchGraphDB:
 
             distance = spatialfunclib.distance((float(prev_lat), float(prev_lon)), (float(curr_lat), float(curr_lon)))
 
-            # note: divide distances greater than to subparts of 10 m to calculate viterbi probability and path
+            # note: divide distances greater than maximum distance
+            #  to subparts of 10 m to calculate viterbi probability and path
             if distance > MAX_DIST_SUBDIVISION_VITERBI:
                 int_steps = int(math.ceil(distance / MAX_DIST_SUBDIVISION_VITERBI))
                 int_step_distance = (distance / float(int_steps))

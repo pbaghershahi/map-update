@@ -7,5 +7,5 @@ with open('final_map.txt') as map_file:
         start_point = [float(x) for x in lines[i].strip('\n').split(',')]
         end_point = [float(x) for x in lines[i + 1].strip('\n').split(',')]
         i += 3
-        plt.plot([start_point[0], end_point[0]], [start_point[1], end_point[1]])
+        plt.plot([start_point[1], end_point[1]], [start_point[0], end_point[0]])
 plt.show()

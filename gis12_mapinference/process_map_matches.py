@@ -7,7 +7,7 @@ import math
 import seaborn as sn
 import matplotlib.pyplot as plt
 
-PRUNING_RMSE_THRESHOLD = 33
+PRUNING_RMSE_THRESHOLD = 100
 
 class ProcessMapMatches:
     def __init__(self):
@@ -24,6 +24,7 @@ class ProcessMapMatches:
         # all_matched_trip_files = [x for x in os.listdir(matched_trips_directory) if x.startswith("matched_trip_") and x.endswith(".txt")]
 
         all_segment_obs = {}  # indexed by segment_id
+        # dict_of_keys = {}
 
         # distance_distros = []
         for dir_name in [x for x in os.listdir(matched_trips_directory) if
@@ -53,7 +54,11 @@ class ProcessMapMatches:
                         if last - first >= 2:
                             matched_trip_records = [x.strip("\n").split(",") for x in temp_trips[first:last]]
                             # note: process each trips
-                            all_segment_obs = self.process_matched_trip(matched_trip_records, all_segment_obs)
+                            # all_segment_obs = self.process_matched_trip(matched_trip_records, all_segment_obs, dict_of_keys)
+                            self.process_matched_trip(matched_trip_records, all_segment_obs)
+                            # for key, value in all_segment_obs.items():
+                            #     print(key, len(value))
+                            # print(len(dict_of_keys))
                         first = last
 
         #
@@ -65,6 +70,8 @@ class ProcessMapMatches:
 
         segment_counter = 1
 
+        # print(dict_of_keys.keys() == all_segment_obs.keys())
+
         # clean up segment-matched traces
         counter = 0
         omit_counter = 0
@@ -72,13 +79,14 @@ class ProcessMapMatches:
         for segment_id in all_segment_obs:
             # sys.stdout.write("\rPost-processing map-matched segment " + str(segment_counter) + "/" + str(len(all_segment_obs)) + "... ")
             # sys.stdout.flush()
-            print("\rPost-processing map-matched segment " + str(segment_counter) + "/" + str(
-                len(all_segment_obs)) + "... ")
+            print("\rPost-processing map-matched segment " +
+                  str(segment_counter) + "/" + str(len(all_segment_obs)) + "... ")
 
             segment_counter += 1
 
             good_segment_traces = []
 
+            # print(len(all_segment_obs[segment_id]))
             for trace in all_segment_obs[segment_id]:
 
                 trace_error = 0.0
@@ -111,10 +119,12 @@ class ProcessMapMatches:
                 if trace_rmse <= PRUNING_RMSE_THRESHOLD:
                     good_segment_traces.append(trace)
                 else:
+                    print('Weeeeeeeee from RMSE')
                     omit_counter += 1
 
                 # print(trace_rmse, omit_counter, counter, omit_counter/counter, rmse_sum/counter)
 
+            # print(len(good_segment_traces))
             all_segment_obs[segment_id] = good_segment_traces
 
         # sn.displot(distance_distros, bins=100)
@@ -146,6 +156,10 @@ class ProcessMapMatches:
 
         valid_nodes = set()
         valid_intersections = set()
+        not_enough_edges_num = 0
+        after_edge_counter = 0
+
+        # print(len(self.graphdb.edges))
 
         for segment_id in all_segment_obs:
             num_segment_traces = len(all_segment_obs[segment_id])
@@ -160,9 +174,15 @@ class ProcessMapMatches:
                     cur.execute(
                         "INSERT INTO edges VALUES (" + str(edge.id) + "," + str(edge.in_node.id) + "," + str(
                             edge.out_node.id) + "," + str(num_segment_traces) + ")")
-
+                    after_edge_counter += 1
                     valid_nodes.add(edge.in_node)
                     valid_nodes.add(edge.out_node)
+
+            # else:
+            #     segment = self.graphdb.segments[segment_id]
+            #     # segment = all_segment_obs[segment_id]
+            #     not_enough_edges_num += len(segment.edges)
+            #     print(f'Weeeeeeeeeee from insertion: {not_enough_edges_num}. number of segment_traces = {num_segment_traces}')
 
         for node in valid_nodes:
             cur.execute("INSERT INTO nodes VALUES (" + str(node.id) + "," + str(node.latitude) + "," + str(
@@ -173,7 +193,7 @@ class ProcessMapMatches:
 
         conn.commit()
         conn.close()
-
+        # print(len(self.graphdb.edges), after_edge_counter)
         # sys.stdout.write("done.\n")
         # sys.stdout.flush()
         print("done.\n")
@@ -207,7 +227,7 @@ class ProcessMapMatches:
                     float(state_out_node_lat), float(state_out_node_lon))]
                 curr_trip_obs.append((curr_state_edge.id, obs_lat, obs_lon, obs_time))
 
-        # note: here for all observed nodes that matched to one edge which is not unknown
+        # note: here for all observed nodes that matched to one edge which is not unknown,
         #  we check if it is not in any unknown time intervals which are stored in no_obs_time_ranges,
         #  if so we just skip that observation.
         if len(no_obs_time_ranges) > 0:
@@ -232,24 +252,42 @@ class ProcessMapMatches:
         prev_segment_id = None
         curr_segment_obs = None
 
+
+        # print('new trip is processing!', len(curr_trip_obs))
         # ambiguity: it does not use the clean_trip_obs instead of curr_trip_obs. so why it is even created?
         for trip_obs in curr_trip_obs:
+            # print(trip_obs)
             edge_id, obs_lat, obs_lon, obs_time = trip_obs
 
             curr_segment = self.graphdb.edges[edge_id].segment  # segment_lookup_table[edge_id]
 
             if curr_segment.id not in all_segment_obs:
+                # print('segment id added')
                 all_segment_obs[curr_segment.id] = []
+            # else:
+            #     print('segment id already exists')
 
             if curr_segment.id != prev_segment_id:
                 if prev_segment_id is not None:
                     all_segment_obs[prev_segment_id].append(curr_segment_obs)
+                    # print(len(all_segment_obs[prev_segment_id]))
                 curr_segment_obs = []
-
+            #
+            # if curr_segment.id in dict_of_keys.keys():
+            #     dict_of_keys[curr_segment.id] += 1
+            # else:
+            #     dict_of_keys[curr_segment.id] = 0
+            # print(prev_segment_id, curr_segment.id, len(all_segment_obs[curr_segment.id]))
             curr_segment_obs.append((edge_id, obs_lat, obs_lon, obs_time))
             prev_segment_id = curr_segment.id
 
-        return all_segment_obs
+        if prev_segment_id is not None:
+            all_segment_obs[prev_segment_id].append(curr_segment_obs)
+
+        # for key, value in all_segment_obs.items():
+        #     print(key, len(value))
+
+        # return all_segment_obs
     
     def coalesce_segments(self, output_db_filename, output_traces_filename, all_segment_obs):
         self.graphdb = StreetMap()

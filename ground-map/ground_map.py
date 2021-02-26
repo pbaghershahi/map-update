@@ -7,16 +7,17 @@ import numpy as np
 # east = 51.3520
 # west = 51.3430
 
-north = 35.7587
-south = 35.7460
-east = 51.3224
-west = 51.3042
+north = 35.7630
+south = 35.7407
+east = 51.3392
+west = 51.2891
 
 graph = ox.graph_from_bbox(north, south, east, west, network_type='drive', simplify=False, retain_all=True)
 nodes, edges = ox.graph_to_gdfs(graph)
 print(edges.columns)
-# edges.columns = ['osmid', 'bridge', 'oneway', 'ref', 'name', 'highway', 'maxspeed', 'length', 'lanes', 'geometry', 'source', 'target', 'key']
-edges.columns = ['osmid', 'oneway', 'highway', 'length', 'ref', 'name', 'maxspeed', 'lanes', 'bridge', 'junction', 'geometry', 'source', 'target', 'key']
+
+# edges.columns = ['osmid', 'oneway', 'highway', 'length', 'ref', 'name', 'maxspeed', 'lanes', 'bridge', 'junction', 'geometry', 'source', 'target', 'key']
+edges.columns = ['osmid', 'oneway', 'ref', 'name', 'highway', 'maxspeed', 'length', 'lanes', 'junction', 'bridge', 'landuse', 'tunnel', 'geometry', 'source', 'target', 'key']
 r_percent = 0.2
 drop_indices = np.random.choice(edges[(edges.highway == 'residential')].index, int(r_percent*len(edges)), replace=False)
 edges['id'] = range(len(edges))
