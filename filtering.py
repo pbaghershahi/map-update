@@ -157,6 +157,7 @@ def load_data(file_path, boundary, file_dist):
         files = sorted(os.listdir(os.path.join(file_path, dir_name)))
         for file in files:
             if not file.endswith('.parquet'):
+                print(file)
                 continue
             trajectories, route_mapping = modify_data(os.path.join(file_path, dir_name, file), boundary, route_mapping)
             if not trajectories:
@@ -203,6 +204,6 @@ def make_trajs(file_path):
 
 def trajToShape(source_path, dist_path):
     trajectories = make_trajs(source_path)
-    df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'latitude', 'bearing', 'speed'])
+    df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'altitude', 'bearing', 'speed'])
     df = gp.GeoDataFrame(df, geometry='geometry')
     df.to_file(dist_path, driver='ESRI Shapefile')
