@@ -26,7 +26,9 @@ python traj_generator.py --bounding_box_path ./utils/bounding_box.txt --data_dir
 
 ############################# Map Matching #################################
 1- Match trajectories with existing ground truth map to detect unmatch trajectories
-python matching/main.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/mr.csv
+python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/mr.csv
+python matching/match.py --ground_map_path ./ground-map/map/filtered_edges.shp --trajs_path ./data/edges.shp --output_file_path ./data/mr.csv --radius 20 --gps_error 10 --write_opath True --write_offset True --n_edge_split 9
+python matching/fmm-match.py --ground_map_path ./ground-map/map/filtered_edges.shp --trajs_path ./data/edges.shp --output_file_path ./data/mr.csv --radius 20 --gps_error 40  --low_threshold 0 --high_threshold 0.5 --obodt_file ./data/ubodt.txt
 
 ############################ Map Inference #################################
 1- Create KDE (kde.png) from trips
@@ -58,3 +60,15 @@ python kde/streetmap.py --file_type graphdb --input_graph_file ./results/kde/ske
 
 10- Plot the last step generated map
 python kde/plot_map.py
+
+############################# evaluate KDE inferred map ##############################
+To just evaluate the inferred map you should run the below command
+python kde/evaluation.py --ground_map_path ./ground-map/map/all_edges.shp --infer_map_dbpath ./results/kde/skeleton-maps/skeleton_map_1m.db
+
+############################## create unmatched csv file #############################
+To read the unmatched trajectories from unmatched file and write the unmatched GPS file run the below command
+python main.py --matches_file_path ../data/mr.csv --output_directory ./data/unmatch --data_directory ../data/gps-csv/
+
+######################### create trajectories from edges #############################
+To create trajectories from inferred edges in shape format (.shp) run the below command
+python edge_traj.py --map_dbpath ./results/kde/skeleton-maps/skeleton_map_1m.db --shape_output_path ./data/inferred-edges/edges.shp --n_edge_splits 9

@@ -3,9 +3,9 @@ import numpy as np
 import geopandas as gp
 from copy import deepcopy
 import sqlite3
-from spatialfunclib import haversine_distance, point_along_line
+from haversine import haversine, Unit
+from spatialfunclib import point_along_line
 import argparse
-
 
 
 class Node:
@@ -19,7 +19,7 @@ class Node:
 def distance_argmin(nodes, sample_node):
     distances = []
     for i in range(len(nodes)):
-        distances.append(haversine_distance(nodes[i], sample_node))
+        distances.append(haversine(nodes[i], sample_node, unit=Unit.METERS))
     return np.argmin(distances)
 
 # stick edges to each other based on the common edges between nodes
@@ -72,7 +72,7 @@ def recursive_node_generation(nodes_mapping, r, d, init_node_id, nodes, traveled
     for neighbor_id in init_node.neighbors.copy():
         # use haversine distance to consider exact distance on earth in meters and taking
         # care of latitude and longitude difference in meters per unit
-        distance = haversine_distance(init_node.coordinates, nodes_mapping[neighbor_id].coordinates)
+        distance = haversine(init_node.coordinates, nodes_mapping[neighbor_id].coordinates, unit=Unit.METERS)
         # for each neighbor of the initial node check the distance condition and if
         # it was bigger than specific distance d break the distance and generate
         # virtual nodes in between until passing the distance threshold
@@ -150,7 +150,7 @@ def match_hole_marble(generated_nodes, error_threshold):
     # compute the haversine distance between each hole and marble
     for i in range(distances.shape[0]):
         for j in range(distances.shape[1]):
-            distances[i, j] = haversine_distance(generated_nodes['marbles'][i], generated_nodes['holes'][j])
+            distances[i, j] = haversine(generated_nodes['marbles'][i], generated_nodes['holes'][j], unit=Unit.METERS)
     matches = []
     for i in range(distances.shape[0]):
         nearest_hole_index = np.argmin(distances[i])
@@ -179,13 +179,14 @@ def evalute_prf(generated_nodes, error_threshold):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluating map inference using hole/marble method to get precision/recall/f-score')
     parser.add_argument('--ground_map_path', type=str, help='Path to ground truth map in shape format (.shp)')
-    parser.add_argument('--infer_map_dbpath', type=str, help='Path to inferenc ground truth map in shape format (.shp)')
+    parser.add_argument('--infer_map_dbpath', type=str, help='Path to inferred map sqlite database')
+    parser.add_argument('--infer_map_txt', type=str, help='Path to inferred map txt file (.txt)')
     args = parser.parse_args()
 
     ground_truth_path = args.ground_map_path
     ground_map = gp.read_file(ground_truth_path)
     gt_edges = ground_map['geometry'].apply(lambda x: np.array(x.coords)[:, ::-1])
-    con = sqlite3.connect("skeleton_maps/skeleton_map_1m.db")
+    con = sqlite3.connect(args.infer_map_dbpath)
     edges_df = pd.read_sql_query("SELECT id, in_node, out_node, weight FROM edges", con)
     nodes_df = pd.read_sql_query("SELECT id, latitude, longitude, weight FROM nodes", con)
     nodes_df.set_index('id', drop=True, inplace=True)
@@ -195,9 +196,10 @@ if __name__ == '__main__':
         [nodes_df.loc[x.in_node].latitude, nodes_df.loc[x.in_node].longitude],
         [nodes_df.loc[x.out_node].latitude, nodes_df.loc[x.out_node].longitude]
     ]), axis=1)
-    r, d, check_threshold, error_threshold = 1000, 100, 0.15, 50
-    gt_nodes_dict = generate_node_mapping(gt_edges)
-    pr_nodes_dict = generate_node_mapping(pr_edges)
-    new_gen_nodes = generate_nodes(gt_nodes_dict, pr_nodes_dict, r, d, check_threshold)
-    precision, recall, f_score = evalute_prf(new_gen_nodes, error_threshold)
-    print(precision, recall, f_score)
+    print(pr_edges)
+    # r, d, check_threshold, error_threshold = 1000, 100, 0.15, 50
+    # gt_nodes_dict = generate_node_mapping(gt_edges)
+    # pr_nodes_dict = generate_node_mapping(pr_edges)
+    # new_gen_nodes = generate_nodes(gt_nodes_dict, pr_nodes_dict, r, d, check_threshold)
+    # precision, recall, f_score = evalute_prf(new_gen_nodes, error_threshold)
+    # print(precision, recall, f_score)

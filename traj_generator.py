@@ -1,5 +1,6 @@
 from filtering import load_data, trajToShape
 import argparse
+import os
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Preprocess, filter, and generate trajectories from raw GPD data')
@@ -20,4 +21,8 @@ if __name__ == '__main__':
         south=south
     )
     _ = load_data(files_path, boundary, args.csv_output_directory)
+
+    traj_directory = '/'.join(args.shape_output_directory.split('/')[:-1])
+    if not os.path.exists(traj_directory):
+        os.makedirs(traj_directory)
     trajToShape(args.csv_output_directory, args.shape_output_directory)

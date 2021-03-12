@@ -504,8 +504,7 @@ if __name__ == '__main__':
     with open(bounding_box_filename, 'r') as bbx_file:
         max_lat, min_lat, max_lon, min_lon = [float(line.strip('\n').split('=')[1]) for line in bbx_file]
 
-    height = len(skeleton)
-    width = len(skeleton[0])
+    height, width = skeleton.shape
     
     yscale = height / (max_lat - min_lat)
     xscale = width / (max_lon - min_lon)

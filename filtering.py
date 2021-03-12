@@ -3,13 +3,17 @@ from shapely import wkb
 from shapely.geometry import LineString
 import geopandas as gp
 import hashlib
+import sqlite3
 import datetime
 from itertools import tee
 import numpy as np
 import os, csv
+# from sklearn.metrics.pairwise import haversine_distances
+from haversine import haversine, Unit
 
-METERS_PER_DEGREE_LATITUDE = 111070.34306591158
-METERS_PER_DEGREE_LONGITUDE = 83044.98918812413
+# METERS_PER_DEGREE_LATITUDE = 111070.34306591158
+# METERS_PER_DEGREE_LONGITUDE = 83044.98918812413
+EARTH_RADIUS = 6371000 # meters
 
 
 def pairwise(iterable):
@@ -40,12 +44,21 @@ def thresh_determiner(obj_list, thresh_percent=0.95, n_bins=100):
     return threshold
 
 
+def insert_nodes(node1, node2, n):
+    latitudes = np.linspace(node1[0], node2[0], n)
+    longitudes = np.linspace(node1[1], node2[1], n)
+    nodes = list(zip(longitudes, latitudes))
+    return nodes
+
+
+# def dist_measure(x, y):
+#     return np.sqrt(((x[0]-y[0])*METERS_PER_DEGREE_LONGITUDE)**2 + ((x[1]-y[1])*METERS_PER_DEGREE_LATITUDE)**2)
 def dist_measure(x, y):
-    return np.sqrt(((x[0]-y[0])*METERS_PER_DEGREE_LONGITUDE)**2 + ((x[1]-y[1])*METERS_PER_DEGREE_LATITUDE)**2)
+    return haversine(x[::-1], y[::-1], unit=Unit.METERS)
 
 
 def spd_measure(x, y):
-    return np.sqrt(((x[0]-y[0])*METERS_PER_DEGREE_LONGITUDE)**2 + ((x[1]-y[1])*METERS_PER_DEGREE_LATITUDE)**2)/max((y[3]-x[3]).seconds, 1)
+    return dist_measure(x, y)/max((y[3]-x[3]).seconds, 1)
 
 
 def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=5):
@@ -157,7 +170,6 @@ def load_data(file_path, boundary, file_dist):
         files = sorted(os.listdir(os.path.join(file_path, dir_name)))
         for file in files:
             if not file.endswith('.parquet'):
-                print(file)
                 continue
             trajectories, route_mapping = modify_data(os.path.join(file_path, dir_name, file), boundary, route_mapping)
             if not trajectories:
@@ -169,6 +181,28 @@ def load_data(file_path, boundary, file_dist):
                 for trajectory in trajectories:
                     for point in trajectory[1]:
                         csv_writer.writerow([trajectory[0]]+point)
+    return file_dist
+
+
+def load_unmatched(file_path, unmatches, file_dist):
+    if os.path.exists(file_path) is not True:
+        print('Path does not exists!')
+        return
+    unmatch_trajs = pd.DataFrame()
+    for dir_name in [x for x in os.listdir(file_path) if os.path.isdir(os.path.join(file_path, x)) and not x.startswith('.')]:
+        if not os.path.exists(file_dist + '/unmatched'):
+            os.makedirs(file_dist + '/unmatched')
+        files = sorted(os.listdir(os.path.join(file_path, dir_name)))
+        for file in files:
+            if not file.endswith('.csv'):
+                continue
+            full_path = os.path.join(file_path, dir_name, file)
+            print(full_path)
+            temp_csv = pd.read_csv(full_path, sep=',', engine='python')
+            unmatch_trajs = pd.concat([unmatch_trajs, temp_csv[temp_csv.route_id.isin(unmatches)]])
+
+    file_name = file_dist + '/unmatched/unmatched.csv'
+    unmatch_trajs.to_csv(file_name, sep=',', header=True, index=False)
     return file_dist
 
 
@@ -196,6 +230,7 @@ def make_trajs(file_path):
                 if point['route_id'] != data.iloc[i+1]['route_id']:
                     traj_line = LineString(line)
                     trajectories.append((point['route_id'], traj_line, ','.join(altitudes), ','.join(bearings), ','.join(speeds)))
+                    # trajectories.append((point['route_id'], traj_line, ','.join(bearings), ','.join(speeds)))
                     line = []
                     bearings = []
                     speeds = []
@@ -205,5 +240,27 @@ def make_trajs(file_path):
 def trajToShape(source_path, dist_path):
     trajectories = make_trajs(source_path)
     df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'altitude', 'bearing', 'speed'])
+    # df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'bearing', 'speed'])
     df = gp.GeoDataFrame(df, geometry='geometry')
     df.to_file(dist_path, driver='ESRI Shapefile')
+
+
+def edgeToShape(map_dbpath, dist_path, n=5):
+    con = sqlite3.connect(map_dbpath)
+    edges_df = pd.read_sql_query("SELECT id, in_node, out_node, weight FROM edges", con)
+    nodes_df = pd.read_sql_query("SELECT id, latitude, longitude, weight FROM nodes", con)
+    nodes_df.set_index('id', drop=True, inplace=True)
+    # find the start and end nodes coordinates for each edge of the edges table
+    # based on nodes of the nodes table
+    edges = pd.DataFrame({'id': edges_df.index + 1})
+    edges['geometry'] = edges_df.apply(
+        lambda row: LineString(
+            insert_nodes(
+                [nodes_df.loc[row.in_node].latitude, nodes_df.loc[row.in_node].longitude],
+                [nodes_df.loc[row.out_node].latitude, nodes_df.loc[row.out_node].longitude],
+                n
+            )
+        ),
+    axis=1)
+    edges = gp.GeoDataFrame(edges, geometry='geometry')
+    edges.to_file(dist_path, driver='ESRI Shapefile')
