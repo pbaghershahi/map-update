@@ -21,6 +21,10 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
+def convert_location(x):
+    point = wkb.loads(x, hex=True)
+    return point.x, point.y
+
 
 def time_preprocess(trip, time_threshold=20):
     filtered_trip = []
@@ -113,44 +117,72 @@ def preprocess(trip, **kwargs):
 
 def modify_data(file_path, boundary, route_mapping, **kwargs):
     data = pd.read_parquet(file_path)
+    # data.sort_values(['route_slug'], inplace=True)
+    # data.reset_index(drop=True, inplace=True)
+
+    data.timestamp = data.timestamp.apply(
+        lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
+    )
+    data.location = data.location.apply(
+        lambda x: convert_location(x)
+    )
+    data['in_bound'] = data.location.apply(
+        lambda x: boundary['west'] < x[0] < boundary['east'] and boundary['south'] < x[1] < boundary['north']
+    )
     trajectories = []
     temp_trip = []
     print(file_path)
     last_index = len(route_mapping)
 
     for i in range(len(data['device_id'])):
-        point = wkb.loads(data.iloc[i]['location'], hex=True)
-        if boundary['west'] < point.x < boundary['east'] and boundary['south'] < point.y < boundary['north']:
+        if data.iloc[i]['in_bound']:
             temp_trip.append([
-                point.x,
-                point.y,
+                data.iloc[i]['location'][0],
+                data.iloc[i]['location'][1],
                 data.iloc[i]['altitude'],
-                datetime.datetime.fromtimestamp(int(data.iloc[i]['timestamp']) / 1000),
+                data.iloc[i]['timestamp'],
                 data.iloc[i]['bearing'],
                 data.iloc[i]['speed']
             ])
         else:
+            if len(temp_trip) > 1:
+                temp_trip = sorted(temp_trip, key=lambda x: x[3])
+                temp_trip = preprocess(temp_trip, **kwargs)
+                if len(temp_trip) > 1:
+                    if data.iloc[i]['route_slug'] in route_mapping.keys():
+                        route_id = route_mapping[data.iloc[i]['route_slug']]
+                    else:
+                        route_mapping[data.iloc[i]['route_slug']] = last_index
+                        route_id = last_index
+                        last_index += 1
+                    trajectories.append(
+                        (
+                            # np.int64(int(hashlib.md5(data.iloc[i]['route_slug'].encode('utf-8')).hexdigest(), 16) % (10**9)),
+                            route_id,
+                            temp_trip
+                        )
+                    )
+            temp_trip = []
             continue
 
         if data.iloc[i]['route_slug'] != data.iloc[i+1]['route_slug']:
-            if data.iloc[i]['route_slug'] in route_mapping.keys():
-                route_id = route_mapping[data.iloc[i]['route_slug']]
-            else:
-                route_mapping[data.iloc[i]['route_slug']] = last_index
-                route_id = last_index
-                last_index += 1
-            temp_trip = sorted(temp_trip, key=lambda x: x[2])
-            temp_trip = preprocess(temp_trip, **kwargs)
             if len(temp_trip) > 1:
-                trajectories.append(
-                    (
-                        # np.int64(int(hashlib.md5(data.iloc[i]['route_slug'].encode('utf-8')).hexdigest(), 16) % (10**9)),
-                        route_id,
-                        # sorted(temp_trip, key=lambda x: x[2])
-                        temp_trip
+                temp_trip = sorted(temp_trip, key=lambda x: x[3])
+                temp_trip = preprocess(temp_trip, **kwargs)
+                if len(temp_trip) > 1:
+                    if data.iloc[i]['route_slug'] in route_mapping.keys():
+                        route_id = route_mapping[data.iloc[i]['route_slug']]
+                    else:
+                        route_mapping[data.iloc[i]['route_slug']] = last_index
+                        route_id = last_index
+                        last_index += 1
+                    trajectories.append(
+                        (
+                            route_id,
+                            temp_trip
+                        )
                     )
-                )
-                temp_trip = []
+            temp_trip = []
     if len(trajectories) == 0:
         print('No bounded points')
     return trajectories, route_mapping
