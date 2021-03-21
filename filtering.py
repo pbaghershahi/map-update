@@ -58,7 +58,7 @@ def insert_nodes(node1, node2, n):
 # def dist_measure(x, y):
 #     return np.sqrt(((x[0]-y[0])*METERS_PER_DEGREE_LONGITUDE)**2 + ((x[1]-y[1])*METERS_PER_DEGREE_LATITUDE)**2)
 def dist_measure(x, y):
-    return haversine(x[::-1], y[::-1], unit=Unit.METERS)
+    return haversine(x[:2][::-1], y[:2][::-1], unit=Unit.METERS)
 
 
 def spd_measure(x, y):
