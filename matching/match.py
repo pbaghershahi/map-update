@@ -73,7 +73,7 @@ if __name__ == '__main__':
                         help='Include distance from the matched point to the start of the matched edge in output file (list of floats)')
     parser.add_argument('--write_error', type=bool, default=True,
                         help='Include distance from each point to its matched point in output file (list of floats)')
-    parser.add_argument('--add_score', type=bool, default=True,
+    parser.add_argument('--add_score', type=bool, default=False,
                         help='Add mean score column to the matches dataframe')
     parser.add_argument('--low_threshold', type=float, default=0.3,
                         help='Low threshold to filter data for include unmatched trajectories')
@@ -81,6 +81,10 @@ if __name__ == '__main__':
                         help='High threshold to filter data for include unmatched trajectories')
     parser.add_argument('--n_edge_split', type=int, default=9,
                         help='Number of edge splits (default:9)')
+    parser.add_argument('--overlap_portion', type=float, default=0.5,
+                        help='Portion of the trajectory which should overlap with existing edge')
+    parser.add_argument('--save_unmatched', type=bool, default=False,
+                        help='Flag to save unmatched results or not only available if add_score is True')
     args = parser.parse_args()
 
     config = STMATCHConfig()
@@ -125,8 +129,9 @@ if __name__ == '__main__':
         # matches['score'] = matches[['ep', 'tp']].apply(compute_score, axis=1)
         # low_threshold = np.exp(-0.5*(args.low_threshold/args.gps_error))
         # high_threshold = np.exp(-0.5*(args.high_threshold/args.gps_error))
+
         low_threshold = 0
-        high_threshold = args.n_edge_split/2
+        high_threshold = args.n_edge_split*args.overlap_portion
 
         print(f'Threshold between: [{high_threshold}, {low_threshold}]')
 
@@ -134,8 +139,12 @@ if __name__ == '__main__':
             lambda e: sum([float(x) for x in e.split(',')]) if pd.notna(e) else np.nan
         )
         matches['unmatch'] = matches['sum_score'].apply(
-            lambda e: high_threshold < float(e) < low_threshold if pd.notna(e) else False
+            lambda e: low_threshold < float(e) < high_threshold if pd.notna(e) else False
         )
+
+        # matches['unmatch'] = matches['opath'].apply(
+        #     lambda e: len(set(e.split(','))) != 1 if pd.notna(e) else False
+        # )
 
         nan_indices = sorted(list((set(edges.index)-set(matches.id))))
         matches['id'][matches.error.isna()] = nan_indices
@@ -143,6 +152,13 @@ if __name__ == '__main__':
         matches.loc[nan_indices, 'unmatch'] = True
 
         matches.to_csv(args.output_file_path, sep=';', header=True, index=True)
+
+        if args.save_unmatched:
+            unmatched_indices = matches[matches.unmatch == True].index
+            unmatched_edges = edges[edges.index.isin(unmatched_indices)]
+            unmatched_edges = gp.GeoDataFrame(unmatched_edges, geometry='geometry')
+            unmatched_edges.to_file('./data/unmatched.shp', driver='ESRI Shapefile')
+
 
 
     print('*'*20)

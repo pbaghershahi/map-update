@@ -196,10 +196,9 @@ if __name__ == '__main__':
         [nodes_df.loc[x.in_node].latitude, nodes_df.loc[x.in_node].longitude],
         [nodes_df.loc[x.out_node].latitude, nodes_df.loc[x.out_node].longitude]
     ]), axis=1)
-    print(pr_edges)
-    # r, d, check_threshold, error_threshold = 1000, 100, 0.15, 50
-    # gt_nodes_dict = generate_node_mapping(gt_edges)
-    # pr_nodes_dict = generate_node_mapping(pr_edges)
-    # new_gen_nodes = generate_nodes(gt_nodes_dict, pr_nodes_dict, r, d, check_threshold)
-    # precision, recall, f_score = evalute_prf(new_gen_nodes, error_threshold)
-    # print(precision, recall, f_score)
+    r, d, check_threshold, error_threshold = 1000, 100, 0.15, 50
+    gt_nodes_dict = generate_node_mapping(gt_edges)
+    pr_nodes_dict = generate_node_mapping(pr_edges)
+    new_gen_nodes = generate_nodes(gt_nodes_dict, pr_nodes_dict, r, d, check_threshold)
+    precision, recall, f_score = evalute_prf(new_gen_nodes, error_threshold)
+    print(precision, recall, f_score)

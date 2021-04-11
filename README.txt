@@ -19,20 +19,24 @@ Please save the created directories if you want to follow the instructions bello
 1- Input desired area bounding box bounding_box.txt
 
 2- Load ground truth map from database (openstreetmap https://www.openstreetmap.org/)
-python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp
+python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp
 
 3- Preprocess and generate trajectories (to csv and shape file formats).
 python traj_generator.py --bounding_box_path ./utils/bounding_box.txt --data_directory ./data/gps-data/ --csv_output_directory ./data/gps-csv/ --shape_output_directory ./data/trajectories/trajs.shp
 
 ############################# Map Matching #################################
-1- Match trajectories with existing ground truth map to detect unmatch trajectories
-python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/mr.csv
-python matching/match.py --ground_map_path ./ground-map/map/filtered_edges.shp --trajs_path ./data/edges.shp --output_file_path ./data/mr.csv --radius 20 --gps_error 10 --write_opath True --write_offset True --n_edge_split 9
-python matching/fmm-match.py --ground_map_path ./ground-map/map/filtered_edges.shp --trajs_path ./data/edges.shp --output_file_path ./data/mr.csv --radius 20 --gps_error 40  --low_threshold 0 --high_threshold 0.5 --obodt_file ./data/ubodt.txt
+1- Match edges as trajectories with the existing filtered ground truth map to detect overlapping edges
+python matching/match.py --ground_map_path ./ground-map/map/filtered_edges.shp --trajs_path ./data/inferred-edges/edges.shp --add_score True --save_unmatched True --write_opath True --output_file_path ./data/mr.csv --radius 20 --gps_error 20 --n_edge_split 9 --overlap_portion 0.5
+
+To evaluate the algorithm performance we should also pass two following steps
+2- Match trajectories with the existing ground truth map to detect edges which have at least n trajectories passing through them
+python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40
+3- Match not overlapped edges with dropped edges to detect the right and wrong detected edges to compute precision, recall, and f1-score
+python matching/match.py --ground_map_path ./ground-map/map/dropped_edges.shp --trajs_path ./data/unmatched.shp --add_score True --output_file_path ./data/unmatched_mr.csv --write_opath True --radius 60 --gps_error 40 --n_edge_split 9 --overlap_portion 0.33
 
 ############################ Map Inference #################################
 1- Create KDE (kde.png) from trips
-python kde/kde.py --trajs_path ./data/gps-csv/ --kde_output_path ./results/kde/kde.png --raw_output_path ./results/kde/raw_data.png
+python kde/kde.py --trajs_path ./data/gps-csv/ --kde_output_path ./results/kde/kde.png --raw_output_path ./results/kde/raw_data.png --bounding_box_path ./utils/bounding_box.txt
 
 2- Create grayscale skeleton from KDE
 python kde/skeleton.py --input_image_file ./results/kde/kde.png --output_image_file ./results/kde/skeleton.png --output_skeleton_dir ./results/kde/skeleton-images/
@@ -71,4 +75,7 @@ python main.py --matches_file_path ../data/mr.csv --output_directory ./data/unma
 
 ######################### create trajectories from edges #############################
 To create trajectories from inferred edges in shape format (.shp) run the below command
-python edge_traj.py --map_dbpath ./results/kde/skeleton-maps/skeleton_map_1m.db --shape_output_path ./data/inferred-edges/edges.shp --n_edge_splits 9
+python edge_traj.py --map_dbpath ./results/kde/skeleton-maps/skeleton_map_1m.db --shape_output_path ./data/inferred-edges/edges.shp --n_edge_splits 9 --min_length 20
+
+
+python evaluation.py --unmatched_match ./data/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path ./data/inferred-edges/edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp
