@@ -318,16 +318,53 @@ def edgeToShape(map_dbpath, dist_path, min_length=20, n=5):
     edges.to_file(dist_path, driver='ESRI Shapefile')
 
 
-def load_directory(
-    dir_path, boundary,
-    output_dir, shape_path,
-    has_distance=True,
-    min_dist_threshold=5,
-    max_dist_threshold=170,
-    max_time_threshold=20,
-    max_spd_threshold=26,
-    split_threshold=100000
-):
+def read_large_size(dir_path, boundary):
+    print('from large size')
+    max_longitude, min_longitude, \
+    max_latitude, min_latitude = boundary['east'], boundary['west'], boundary['north'], boundary['south']
+    all_df = []
+    for file_name in sorted(os.listdir(dir_path)):
+        file_path = os.path.join(dir_path, file_name)
+        print(file_path)
+        inbound_df = pd.read_parquet(file_path)
+        inbound_df = inbound_df[
+            [
+                'device_id',
+                'route_slug',
+                'location',
+                'altitude',
+                'timestamp',
+                'bearing',
+                'speed',
+                'distance'
+            ]
+        ]
+        inbound_df.location = inbound_df.location.apply(lambda x: convert_location(x))
+        inbound_df['longitude'] = inbound_df.location.apply(lambda x: x[0])
+        inbound_df['latitude'] = inbound_df.location.apply(lambda x: x[1])
+        inbound_df = inbound_df[
+            [
+                'device_id',
+                'route_slug',
+                'latitude',
+                'longitude',
+                'altitude',
+                'timestamp',
+                'bearing',
+                'speed',
+                'distance'
+            ]
+        ]
+        inbound_df = inbound_df[
+            inbound_df.longitude.between(min_longitude, max_longitude) & \
+            inbound_df.latitude.between(min_latitude, max_latitude)
+            ]
+        all_df.append(inbound_df)
+    all_df = pd.concat(all_df, ignore_index=True)
+    return all_df
+
+
+def read_small_size(dir_path, boundary):
     max_longitude, min_longitude, \
     max_latitude, min_latitude = boundary['east'], boundary['west'], boundary['north'], boundary['south']
     all_df = pd.read_parquet(dir_path)
@@ -363,6 +400,24 @@ def load_directory(
         all_df.longitude.between(min_longitude, max_longitude) & \
         all_df.latitude.between(min_latitude, max_latitude)
         ]
+    return all_df
+
+
+def load_directory(
+        dir_path, boundary,
+        output_dir, shape_path,
+        has_distance=True,
+        min_dist_threshold=5,
+        max_dist_threshold=170,
+        max_time_threshold=20,
+        max_spd_threshold=26,
+        split_threshold=100000,
+        large_size=False
+):
+    if large_size:
+        all_df = read_large_size(dir_path, boundary)
+    else:
+        all_df = read_small_size(dir_path, boundary)
     all_df.timestamp = all_df.timestamp.apply(
         lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
     )
@@ -404,7 +459,7 @@ def load_directory(
     first, last = 0, 0
     for i in range(1, len(all_df)):
 
-        previous = all_df.iloc[i-1]
+        previous = all_df.iloc[i - 1]
         current = all_df.iloc[i]
 
         if any([

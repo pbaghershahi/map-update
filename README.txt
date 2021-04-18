@@ -22,7 +22,7 @@ Please save the created directories if you want to follow the instructions bello
 python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp
 
 3- Preprocess and generate trajectories (to csv and shape file formats).
-python traj_generator.py --bounding_box_path ./utils/bounding_box.txt --data_directory ./data/gps-data/ --csv_output_directory ./data/gps-csv/ --shape_output_directory ./data/trajectories/trajs.shp
+python traj_generator.py --bounding_box_path ./utils/bounding_box.txt --data_directory ./data/gps-data/ --csv_output_directory ./data/gps-csv/ --shape_output_directory ./data/trajectories/trajs.shp --from_directory True
 
 ############################# Map Matching #################################
 1- Match edges as trajectories with the existing filtered ground truth map to detect overlapping edges
@@ -39,7 +39,7 @@ python matching/match.py --ground_map_path ./ground-map/map/dropped_edges.shp --
 python kde/kde.py --trajs_path ./data/gps-csv/ --kde_output_path ./results/kde/kde.png --raw_output_path ./results/kde/raw_data.png --bounding_box_path ./utils/bounding_box.txt
 
 2- Create grayscale skeleton from KDE
-python kde/skeleton.py --input_image_file ./results/kde/kde.png --output_image_file ./results/kde/skeleton.png --output_skeleton_dir ./results/kde/skeleton-images/
+python kde/skeleton.py --input_image_file ./results/kde/kde.png --output_image_file ./results/kde/skeleton.png --output_skeleton_dir ./results/kde/skeleton-images/ --closing_radius 6
 
 3- Extract map database from grayscale skeleton
 python kde/graph_extract.py --skeleton_image_path ./results/kde/skeleton.png --bounding_box_path ./utils/bounding_box.txt --output_file_path ./results/kde/skeleton-maps/skeleton_map_1m.db
@@ -78,4 +78,6 @@ To create trajectories from inferred edges in shape format (.shp) run the below 
 python edge_traj.py --map_dbpath ./results/kde/skeleton-maps/skeleton_map_1m.db --shape_output_path ./data/inferred-edges/edges.shp --n_edge_splits 9 --min_length 20
 
 
-python evaluation.py --unmatched_match ./data/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path ./data/inferred-edges/edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp
+python evaluation.py --match_path ./data/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path ./data/inferred-edges/edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp --results_save_path ./evaluation_results.txt
+python plot.py --match_path ./data/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path ./data/inferred-edges/edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --figure_save_path ./unmatched_dropped.png --apply_cos_sim True
+python plot.py --match_path ./data/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path ./data/inferred-edges/edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --figure_save_path ./unmatched_dropped.png --plot_matches True
