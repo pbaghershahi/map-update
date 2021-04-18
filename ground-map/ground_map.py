@@ -2,7 +2,7 @@ import osmnx as ox
 import geopandas as gp
 from haversine import haversine, Unit
 import numpy as np
-import argparse
+import argparse, os
 
 
 def filter_bound(x, bound):
@@ -52,7 +52,10 @@ if __name__ == '__main__':
     print(edges.columns)
 
     # edges.columns = ['osmid', 'oneway', 'highway', 'length', 'ref', 'name', 'maxspeed', 'lanes', 'bridge', 'junction', 'geometry', 'source', 'target', 'key']
-    edges.columns = ['osmid', 'oneway', 'ref', 'name', 'highway', 'maxspeed', 'way_length', 'lanes', 'junction', 'bridge', 'landuse', 'tunnel', 'geometry', 'source', 'target', 'key']
+    # edges.columns = ['osmid', 'oneway', 'ref', 'name', 'highway', 'maxspeed', 'way_length', 'lanes', 'junction', 'bridge', 'landuse', 'tunnel', 'geometry', 'source', 'target', 'key']
+    edges = edges[['osmid', 'oneway', 'highway', 'length', 'geometry', 'u', 'v']]
+    edges.columns = ['osmid', 'oneway', 'highway', 'way_length', 'geometry', 'source', 'target']
+    # print('here in ground ********************************')
     # edges = edges[edges.way_length > args.min_edge_length]
     np.random.seed(args.drop_seed)
     r_percent = args.remove_percent
@@ -71,6 +74,10 @@ if __name__ == '__main__':
     all_edges['id'] = all_edges['id'].apply(lambda x: x[0] if type(x) == list else x)
     dropped_edges = all_edges.loc[drop_indices]
     filtered_edges = all_edges.drop(drop_indices)
+
+    output_dir = '/'.join(args.ground_map_path.split('/')[:-1])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     all_edges.to_file(args.ground_map_path)
     filtered_edges.to_file(args.filtered_map_path)
     dropped_edges.to_file(args.dropped_map_path)

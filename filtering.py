@@ -21,23 +21,10 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
+
 def convert_location(x):
     point = wkb.loads(x, hex=True)
     return point.x, point.y
-
-
-def time_preprocess(trip, time_threshold=20):
-    filtered_trip = []
-    counter = 0
-    for org, dest in pairwise(trip):
-        delta = (dest[3]-org[3]).seconds
-        filtered_trip.append(org)
-        counter += 1
-        if delta > time_threshold:
-            break
-        if counter == len(trip)-1:
-            filtered_trip.append(dest)
-    return filtered_trip
 
 
 def thresh_determiner(obj_list, thresh_percent=0.95, n_bins=100):
@@ -63,6 +50,20 @@ def dist_measure(x, y):
 
 def spd_measure(x, y):
     return dist_measure(x, y)/max((y[3]-x[3]).seconds, 1)
+
+
+def time_preprocess(trip, time_threshold=20):
+    filtered_trip = []
+    counter = 0
+    for org, dest in pairwise(trip):
+        delta = (dest[3]-org[3]).seconds
+        filtered_trip.append(org)
+        counter += 1
+        if delta > time_threshold:
+            break
+        if counter == len(trip)-1:
+            filtered_trip.append(dest)
+    return filtered_trip
 
 
 def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=5):
@@ -216,28 +217,6 @@ def load_data(file_path, boundary, file_dist):
     return file_dist
 
 
-def load_unmatched(file_path, unmatches, file_dist):
-    if os.path.exists(file_path) is not True:
-        print('Path does not exists!')
-        return
-    unmatch_trajs = pd.DataFrame()
-    for dir_name in [x for x in os.listdir(file_path) if os.path.isdir(os.path.join(file_path, x)) and not x.startswith('.')]:
-        if not os.path.exists(file_dist + '/unmatched'):
-            os.makedirs(file_dist + '/unmatched')
-        files = sorted(os.listdir(os.path.join(file_path, dir_name)))
-        for file in files:
-            if not file.endswith('.csv'):
-                continue
-            full_path = os.path.join(file_path, dir_name, file)
-            print(full_path)
-            temp_csv = pd.read_csv(full_path, sep=',', engine='python')
-            unmatch_trajs = pd.concat([unmatch_trajs, temp_csv[temp_csv.route_id.isin(unmatches)]])
-
-    file_name = file_dist + '/unmatched/unmatched.csv'
-    unmatch_trajs.to_csv(file_name, sep=',', header=True, index=False)
-    return file_dist
-
-
 def make_trajs(file_path):
     if os.path.exists(file_path) is not True:
         print('Path does not exists!')
@@ -275,6 +254,28 @@ def trajToShape(source_path, dist_path):
     # df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'bearing', 'speed'])
     df = gp.GeoDataFrame(df, geometry='geometry')
     df.to_file(dist_path, driver='ESRI Shapefile')
+
+
+def load_unmatched(file_path, unmatches, file_dist):
+    if os.path.exists(file_path) is not True:
+        print('Path does not exists!')
+        return
+    unmatch_trajs = pd.DataFrame()
+    for dir_name in [x for x in os.listdir(file_path) if os.path.isdir(os.path.join(file_path, x)) and not x.startswith('.')]:
+        if not os.path.exists(file_dist + '/unmatched'):
+            os.makedirs(file_dist + '/unmatched')
+        files = sorted(os.listdir(os.path.join(file_path, dir_name)))
+        for file in files:
+            if not file.endswith('.csv'):
+                continue
+            full_path = os.path.join(file_path, dir_name, file)
+            print(full_path)
+            temp_csv = pd.read_csv(full_path, sep=',', engine='python')
+            unmatch_trajs = pd.concat([unmatch_trajs, temp_csv[temp_csv.route_id.isin(unmatches)]])
+
+    file_name = file_dist + '/unmatched/unmatched.csv'
+    unmatch_trajs.to_csv(file_name, sep=',', header=True, index=False)
+    return file_dist
 
 
 def edgeToShape(map_dbpath, dist_path, min_length=20, n=5):
@@ -315,3 +316,140 @@ def edgeToShape(map_dbpath, dist_path, min_length=20, n=5):
     axis=1)
     edges = gp.GeoDataFrame(edges, geometry='geometry')
     edges.to_file(dist_path, driver='ESRI Shapefile')
+
+
+def load_directory(
+    dir_path, boundary,
+    output_dir, shape_path,
+    has_distance=True,
+    min_dist_threshold=5,
+    max_dist_threshold=170,
+    max_time_threshold=20,
+    max_spd_threshold=26,
+    split_threshold=100000
+):
+    max_longitude, min_longitude, \
+    max_latitude, min_latitude = boundary['east'], boundary['west'], boundary['north'], boundary['south']
+    all_df = pd.read_parquet(dir_path)
+    all_df = all_df[
+        [
+            'device_id',
+            'route_slug',
+            'location',
+            'altitude',
+            'timestamp',
+            'bearing',
+            'speed',
+            'distance'
+        ]
+    ]
+    all_df.location = all_df.location.apply(lambda x: convert_location(x))
+    all_df['longitude'] = all_df.location.apply(lambda x: x[0])
+    all_df['latitude'] = all_df.location.apply(lambda x: x[1])
+    all_df = all_df[
+        [
+            'device_id',
+            'route_slug',
+            'latitude',
+            'longitude',
+            'altitude',
+            'timestamp',
+            'bearing',
+            'speed',
+            'distance'
+        ]
+    ]
+    all_df = all_df[
+        all_df.longitude.between(min_longitude, max_longitude) & \
+        all_df.latitude.between(min_latitude, max_latitude)
+        ]
+    all_df.timestamp = all_df.timestamp.apply(
+        lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
+    )
+    all_df.sort_values(by=['route_slug', 'timestamp'], inplace=True)
+    all_df.reset_index(drop=True, inplace=True)
+    all_df['ntraj_points'] = 0
+    all_df['route_id'] = 0
+    all_df['pr_time'] = all_df.timestamp.shift(1)
+    all_df = all_df[1:]
+    all_df['delta_time'] = all_df[['timestamp', 'pr_time']].apply(
+        lambda x: (x.timestamp - x.pr_time).seconds, axis=1
+    )
+    if has_distance:
+        all_df['pr_distance'] = all_df.distance.shift(1)
+        all_df = all_df[1:]
+        all_df['delta_dist'] = all_df[['distance', 'pr_distance']].apply(
+            lambda x: x.distance - x.pr_distance, axis=1
+        )
+    else:
+        all_df['pr_latitude'] = all_df.latitude.shift(1)
+        all_df['pr_longitude'] = all_df.longitude.shift(1)
+        all_df = all_df[1:]
+        all_df['delta_dist'] = all_df[
+            ['latitude', 'longitude', 'pr_latitude', 'pr_longitude']
+        ].apply(
+            lambda x: haversine(
+                (x.latitude, x.longitude),
+                (x.pr_latitude, x.pr_longitude),
+                unit=Unit.METERS
+            ), axis=1
+        )
+    all_df['avg_speed'] = all_df[['delta_dist', 'delta_time']].apply(
+        lambda x: x.delta_dist / max(x.delta_time, 1), axis=1
+    )
+    print(len(all_df))
+
+    all_df = all_df[all_df.delta_dist > min_dist_threshold]
+    last_route_id = 0
+    first, last = 0, 0
+    for i in range(1, len(all_df)):
+
+        previous = all_df.iloc[i-1]
+        current = all_df.iloc[i]
+
+        if any([
+            current['route_slug'] != previous['route_slug'],
+            current['delta_time'] > max_time_threshold,
+            current['avg_speed'] > max_spd_threshold,
+            current['delta_dist'] > max_dist_threshold
+        ]):
+            last = i
+            all_df.iloc[first:last]['ntraj_points'] = last - first
+            all_df.iloc[first:last]['route_id'] = last_route_id
+            last_route_id += 1
+            first = i
+    all_df = all_df[all_df.ntraj_points > 1]
+    print(len(all_df))
+    all_df = all_df[
+        [
+            'route_id',
+            'longitude',
+            'latitude',
+            'altitude',
+            'timestamp',
+            'bearing',
+            'speed'
+        ]
+    ]
+    idxs = all_df.route_id.unique()
+    split_parts = int(len(all_df) / min(split_threshold, len(all_df)))
+    splitted_idxs = np.array_split(idxs, split_parts)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    for arr in splitted_idxs:
+        file_name = os.path.join(output_dir, f'{arr[0]}-{arr[-1]}.csv')
+        all_df[all_df.route_id.isin(arr)].to_csv(file_name, sep=',', header=True, index=False)
+
+    trajs_list = []
+    list2str = lambda x: ','.join([str(y) for y in x])
+    for idx in idxs:
+        idx_df = all_df[all_df.route_id == idx]
+        traj_list = list(zip(idx_df.longitude.values, idx_df.longitude.values))
+        trajs_list.append(
+            (idx, LineString(traj_list), list2str(idx_df.altitude.tolist()),
+             list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
+        )
+    df = pd.DataFrame(trajs_list, columns=['id', 'geometry', 'altitude', 'bearing', 'speed'])
+    df = gp.GeoDataFrame(df, geometry='geometry')
+    df.to_file(shape_path, driver='ESRI Shapefile')
+    return all_df

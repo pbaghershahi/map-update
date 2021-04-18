@@ -11,8 +11,8 @@ class GrayscaleSkeleton:
     def __init__(self):
         pass
 
-    def skeletonize(self, image):
-        out_image = grey_closing(image, footprint=circle(8), mode='constant', cval=0.0)
+    def skeletonize(self, image, closing_radius=8):
+        out_image = grey_closing(image, footprint=circle(closing_radius), mode='constant', cval=0.0)
         out_image = add_zero_mat(out_image)
         prev_binary_image = np.zeros_like(out_image)
 
@@ -130,7 +130,7 @@ def circle(radius):
     return (circle_out <= (radius ** 2)).astype(np.int)
 
 import sys, time
-import argparse
+import argparse, os
 
 
 if __name__ == '__main__':
@@ -138,10 +138,16 @@ if __name__ == '__main__':
     parser.add_argument('--input_image_file', type=str, help='Path to KDE image file')
     parser.add_argument('--output_image_file', type=str, help='Path to save skeleton image file')
     parser.add_argument('--output_skeleton_dir', type=str, help='directory to save skeleton images')
+    parser.add_argument('--closing_radius', type=int, default=8, help='radius used for closing in skeletonization.')
     args = parser.parse_args()
 
+    if not os.path.exists(args.output_skeleton_dir):
+        os.makedirs(args.output_skeleton_dir)
     skeleton_images_path = args.output_skeleton_dir
     input_filename = args.input_image_file
+    output_dir = '/'.join(args.output_image_file.split('/')[:-1])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     output_filename = args.output_image_file
 
     print("input filename: " + str(input_filename))
@@ -152,6 +158,6 @@ if __name__ == '__main__':
     s = GrayscaleSkeleton()
 
     start_time = time.time()
-    skeleton = s.skeletonize(input_kde)
+    skeleton = s.skeletonize(input_kde, closing_radius=args.closing_radius)
     print("total elapsed time: " + str(time.time() - start_time) + " seconds")
     imageio.imwrite(output_filename, skeleton)

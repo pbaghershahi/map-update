@@ -5,7 +5,7 @@ import numpy as np
 import seaborn as sn
 import datetime
 from shapely import wkb
-import argparse
+import argparse, os
 import osmnx as ox
 from haversine import haversine, Unit
 
@@ -16,7 +16,7 @@ def cos_similarity(a, b):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate Algorithm Performance by Precision, Recall, F1-score')
-    parser.add_argument('--unmatched_match', type=str,
+    parser.add_argument('--match_path', type=str,
                         help='Path to unmatched matching of dropped edges and unmatched edges in csv format (.csv)')
     parser.add_argument('--trajs_match', type=str,
                         help='Path to trajectories matching of all edges and trajectory edges in csv format (.csv)')
@@ -30,13 +30,15 @@ if __name__ == '__main__':
                         help='minimum length of dropped edges which the algorithm can infer in meters')
     parser.add_argument('--min_crossing', type=int, default=1,
                         help='minimum number of crossing from dropped edges which the algorithm can infer')
+    parser.add_argument('--results_save_path', type=str, default='results.txt',
+                        help='path to save evaluation results in .txt format')
     args = parser.parse_args()
 
     # matches = pd.read_csv('./data/unmatched_mr.csv', sep=';', index_col='id', engine='python')
-    matches = pd.read_csv(args.unmatched_match, sep=';', index_col='id', engine='python')
+    matches = pd.read_csv(args.match_path, sep=';', index_col='id', engine='python')
     # trajs_matches = pd.read_csv('./data/trajs_mr.csv', sep=';', index_col='id', engine='python')
     trajs_matches = pd.read_csv(args.trajs_match, sep=';', index_col='id', engine='python')
-    trajs_matches = trajs_matches[trajs_matches.cpath.notna()]
+    trajs_matches = trajs_matches[trajs_matches.opath.notna()]
     # edges = gp.read_file('./data/inferred-edges/edges.shp')
     edges = gp.read_file(args.inferred_edges_path)
     edges.set_index('id', drop=True, inplace=True)
@@ -79,10 +81,17 @@ if __name__ == '__main__':
     precision = num_true_edges/total_unmatched_edges
     recall = num_true_edges/total_dropped_edges
     f1_score = 2 * precision * recall / (precision + recall)
-    print(f'{"*"*20}Final results:{"*"*20}\n'
-          f'Total number of inferred edges: {total_unmatched_edges}\n'
-          f'Total number of dropped edges: {total_dropped_edges}\n'
-          f'Number of correctly detected edges: {num_true_edges}\n'
-          f'Precision: {precision}\n'
-          f'Recall: {recall}\n'
-          f'F1-score: {f1_score}')
+    result_txt = f'{"*"*20}Final results:{"*"*20}\n'\
+                 f'Total number of inferred edges: {total_unmatched_edges}\n'\
+                 f'Total number of dropped edges: {total_dropped_edges}\n'\
+                 f'Number of correctly detected edges: {num_true_edges}\n'\
+                 f'Precision: {precision}\n'\
+                 f'Recall: {recall}\n'\
+                 f'F1-score: {f1_score}'
+
+    output_dir = '/'.join(args.results_save_path.split('/')[:-1])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    with open(args.results_save_path, 'w') as result_file:
+        result_file.write(result_txt)
+    print(result_txt)

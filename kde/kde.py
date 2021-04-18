@@ -5,7 +5,7 @@ from pylibs import spatialfunclib
 from haversine import haversine, Unit
 from itertools import tee
 import numpy as np
-import argparse
+import argparse, os
 import imageio
 
 
@@ -102,6 +102,9 @@ if __name__ == '__main__':
     cell_size = args.cell_size
     gaussian_blur = args.gaussian_blur
     trips_path = args.trajs_path
+    output_dir = '/'.join(args.kde_output_path.split('/')[:-1])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     kde_path = args.kde_output_path
     raw_path = args.raw_output_path
 

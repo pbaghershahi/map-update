@@ -19,7 +19,7 @@ for example to install on ubuntu os you should follow the steps bellow:
 """
 
 from fmm import GPSConfig, ResultConfig, Network, NetworkGraph, STMATCH, STMATCHConfig
-import argparse
+import argparse, os
 import pandas as pd
 import geopandas as gp
 import numpy as np
@@ -86,6 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_unmatched', type=bool, default=False,
                         help='Flag to save unmatched results or not only available if add_score is True')
     args = parser.parse_args()
+    print(args.ground_map_path, args.trajs_path, args.output_file_path)
 
     config = STMATCHConfig()
     config.k = args.n_candidates
@@ -107,6 +108,10 @@ if __name__ == '__main__':
 
     print(input_config.to_string())
     print('*'*20)
+
+    output_dir = '/'.join(args.output_file_path.split('/')[:-1])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     result_config = ResultConfig()
     result_config.file = args.output_file_path
@@ -157,7 +162,7 @@ if __name__ == '__main__':
             unmatched_indices = matches[matches.unmatch == True].index
             unmatched_edges = edges[edges.index.isin(unmatched_indices)]
             unmatched_edges = gp.GeoDataFrame(unmatched_edges, geometry='geometry')
-            unmatched_edges.to_file('./data/unmatched.shp', driver='ESRI Shapefile')
+            unmatched_edges.to_file(os.path.join(output_dir, 'unmatched.shp'), driver='ESRI Shapefile')
 
 
 

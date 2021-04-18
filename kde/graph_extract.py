@@ -481,7 +481,7 @@ class Graph:
         return crossing_skeleton
 
 import sys, time
-import argparse
+import argparse, os
 
 
 if __name__ == '__main__':
@@ -493,6 +493,9 @@ if __name__ == '__main__':
 
     skeleton_filename = args.skeleton_image_path
     bounding_box_filename = args.bounding_box_path
+    output_dir = '/'.join(args.output_file_path.split('/')[:-1])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     output_filename = args.output_file_path
     
     print("skeleton filename: " + str(skeleton_filename))
