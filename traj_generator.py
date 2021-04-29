@@ -10,7 +10,9 @@ if __name__ == '__main__':
     parser.add_argument('--shape_output_directory', type=str, help='Directory to save trajectories shape files (.shp)')
     parser.add_argument('--from_directory', type=bool, default=False, help='load and write all data at once.')
     parser.add_argument('--large_size_files', type=bool, default=False,
-                        help='if parquet files are large size or not. (default: False)')
+                        help='if parquet files are large size. (default: False)')
+    parser.add_argument('--has_distance', type=bool, default=False,
+                        help='if parquet files has column. (default: False)')
     args = parser.parse_args()
 
     with open(args.bounding_box_path, 'r') as bbx_file:
@@ -26,14 +28,17 @@ if __name__ == '__main__':
         large_size_files = True
     else:
         large_size_files = False
+    if args.has_distance:
+        has_distance = True
+    else:
+        has_distance = False
     if args.from_directory:
-        boundary = dict(east=51.431343, west=51.407055, north=35.72351, south=35.71129)
         _ = load_directory(
             dir_path=args.data_directory,
             boundary=boundary,
             output_dir=args.csv_output_directory,
             shape_path=args.shape_output_directory,
-            has_distance=True,
+            has_distance=has_distance,
             large_size=large_size_files
         )
     else:

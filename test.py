@@ -33,10 +33,19 @@ def partition_area(boundary, n_vertical, n_horizontal):
     return vert_bounds, horz_bounds
 
 n_vertical = 2
-n_horizontal = 3
-boundary = dict(east=51.3392, west=51.2891, north=35.7630, south=35.7407)
+n_horizontal = 4
+with open('./utils/bounding_box.txt', 'r') as bbx_file:
+    north, south, east, west = [float(line.strip('\n').split('=')[1]) for line in bbx_file]
+
+boundary = dict(
+    east=east,
+    west=west,
+    north=north,
+    south=south
+)
 vert_bounds, horz_bounds = partition_area(boundary, n_vertical, n_horizontal)
 
+results, errors = execute('python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp')
 results, errors = execute('python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40')
 for vert_bound in vert_bounds:
     for horz_bound in horz_bounds:
@@ -56,7 +65,7 @@ for vert_bound in vert_bounds:
             f'WEST_LONGITUDE={boundary["west"]}'
             bound_file.write(txt2write)
         split_threshold = 50000
-        trajs_dirpath = './data/gps-csv/51513535/'
+        trajs_dirpath = './data/gps-csv/sample-area/'
         csv_dirpath = './data/gps-csv/'
         _ = traj_partition(trajs_dirpath, boundary, csv_dirpath, split_threshold)
         groundmap_dir = os.path.join('./ground-map/map/', output_dir)
@@ -98,7 +107,3 @@ for vert_bound in vert_bounds:
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/all_filtered.png --plot_all_edges True --background_map filtered')
         print('*'*50)
-        # print(results)
-        # print(errors)
-        # print('*'*50)
-        # print(f'boundary {output_dir} ended.')

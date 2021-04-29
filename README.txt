@@ -22,7 +22,7 @@ Please save the created directories if you want to follow the instructions bello
 python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp
 
 3- Preprocess and generate trajectories (to csv and shape file formats).
-python traj_generator.py --bounding_box_path ./utils/bounding_box.txt --data_directory ./data/gps-data/ --csv_output_directory ./data/gps-csv/ --shape_output_directory ./data/trajectories/trajs.shp --from_directory True
+python traj_generator.py --bounding_box_path ./utils/bounding_box.txt --data_directory ./data/gps-data/ --csv_output_directory ./data/gps-csv/ --shape_output_directory ./data/trajectories/trajs.shp --from_directory True --has_distance True
 
 ############################# Map Matching #################################
 1- Match edges as trajectories with the existing filtered ground truth map to detect overlapping edges

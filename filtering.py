@@ -318,87 +318,52 @@ def edgeToShape(map_dbpath, dist_path, min_length=20, n=5):
     edges.to_file(dist_path, driver='ESRI Shapefile')
 
 
-def read_large_size(dir_path, boundary):
-    print('from large size')
-    max_longitude, min_longitude, \
-    max_latitude, min_latitude = boundary['east'], boundary['west'], boundary['north'], boundary['south']
+def read_large_size(dir_path, boundary, has_distance=True):
     all_df = []
     for file_name in sorted(os.listdir(dir_path)):
+        if not file_name.endswith('.parquet'):
+            continue
         file_path = os.path.join(dir_path, file_name)
         print(file_path)
         inbound_df = pd.read_parquet(file_path)
-        inbound_df = inbound_df[
-            [
-                'device_id',
-                'route_slug',
-                'location',
-                'altitude',
-                'timestamp',
-                'bearing',
-                'speed',
-                'distance'
-            ]
-        ]
         inbound_df.location = inbound_df.location.apply(lambda x: convert_location(x))
         inbound_df['longitude'] = inbound_df.location.apply(lambda x: x[0])
         inbound_df['latitude'] = inbound_df.location.apply(lambda x: x[1])
-        inbound_df = inbound_df[
-            [
-                'device_id',
-                'route_slug',
-                'latitude',
-                'longitude',
-                'altitude',
-                'timestamp',
-                'bearing',
-                'speed',
-                'distance'
+        inbound_df['in_bound'] = inbound_df.location.apply(
+            lambda x: boundary['west'] < x[0] < boundary['east'] and boundary['south'] < x[1] < boundary['north']
+        )
+        inbound_df = inbound_df[inbound_df.in_bound == True]
+        if has_distance:
+            inbound_df = inbound_df[
+                ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed',
+                 'distance']
             ]
-        ]
-        inbound_df = inbound_df[
-            inbound_df.longitude.between(min_longitude, max_longitude) & \
-            inbound_df.latitude.between(min_latitude, max_latitude)
+        else:
+            inbound_df = inbound_df[
+                ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed']
             ]
         all_df.append(inbound_df)
     all_df = pd.concat(all_df, ignore_index=True)
     return all_df
 
 
-def read_small_size(dir_path, boundary):
-    max_longitude, min_longitude, \
-    max_latitude, min_latitude = boundary['east'], boundary['west'], boundary['north'], boundary['south']
+def read_small_size(dir_path, boundary, has_distance=True):
     all_df = pd.read_parquet(dir_path)
-    all_df = all_df[
-        [
-            'device_id',
-            'route_slug',
-            'location',
-            'altitude',
-            'timestamp',
-            'bearing',
-            'speed',
-            'distance'
-        ]
-    ]
     all_df.location = all_df.location.apply(lambda x: convert_location(x))
     all_df['longitude'] = all_df.location.apply(lambda x: x[0])
     all_df['latitude'] = all_df.location.apply(lambda x: x[1])
-    all_df = all_df[
-        [
-            'device_id',
-            'route_slug',
-            'latitude',
-            'longitude',
-            'altitude',
-            'timestamp',
-            'bearing',
-            'speed',
-            'distance'
+    all_df['in_bound'] = all_df.location.apply(
+        lambda x: boundary['west'] < x[0] < boundary['east'] and boundary['south'] < x[1] < boundary['north']
+    )
+    all_df = all_df[all_df.in_bound == True]
+    if has_distance:
+        all_df = all_df[
+            ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed',
+             'distance']
         ]
-    ]
-    all_df = all_df[
-        all_df.longitude.between(min_longitude, max_longitude) & \
-        all_df.latitude.between(min_latitude, max_latitude)
+    else:
+        all_df = all_df[
+            ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed']
         ]
     return all_df
 
@@ -415,9 +380,11 @@ def load_directory(
         large_size=False
 ):
     if large_size:
-        all_df = read_large_size(dir_path, boundary)
+        print('loading from large size method')
+        all_df = read_large_size(dir_path, boundary, has_distance)
     else:
-        all_df = read_small_size(dir_path, boundary)
+        print('loading from small size method')
+        all_df = read_small_size(dir_path, boundary, has_distance)
     all_df.timestamp = all_df.timestamp.apply(
         lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
     )
@@ -499,7 +466,7 @@ def load_directory(
     list2str = lambda x: ','.join([str(y) for y in x])
     for idx in idxs:
         idx_df = all_df[all_df.route_id == idx]
-        traj_list = list(zip(idx_df.longitude.values, idx_df.longitude.values))
+        traj_list = list(zip(idx_df.longitude.values, idx_df.latitude.values))
         trajs_list.append(
             (idx, LineString(traj_list), list2str(idx_df.altitude.tolist()),
              list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
