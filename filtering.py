@@ -9,7 +9,7 @@ import sqlite3
 import datetime
 from itertools import tee
 import numpy as np
-import os, csv
+import os, csv, sys
 # from sklearn.metrics.pairwise import haversine_distances
 from haversine import haversine, Unit
 
@@ -68,7 +68,7 @@ def time_preprocess(trip, time_threshold=20):
     return filtered_trip
 
 
-def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=5):
+def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=2):
     filtered_trip = []
     while len(trip) > 1:
         org = trip.pop(0)
@@ -118,7 +118,7 @@ def preprocess(trip, **kwargs):
     return temp_trip
 
 
-def modify_data(file_path, boundary, route_mapping, **kwargs):
+def modify_data(file_path, boundary, global_index, **kwargs):
     data = pd.read_parquet(file_path)
     # data.sort_values(['route_slug'], inplace=True)
     # data.reset_index(drop=True, inplace=True)
@@ -135,10 +135,10 @@ def modify_data(file_path, boundary, route_mapping, **kwargs):
     trajectories = []
     temp_trip = []
     print(file_path)
-    last_index = len(route_mapping)
+    # last_index = len(route_mapping)
 
     # for i in range(len(data['device_id'])):
-    for i in range(len(data)):
+    for i in range(len(data)-1):
         if data.iloc[i]['in_bound']:
             temp_trip.append([
                 data.iloc[i]['location'][0],
@@ -153,19 +153,21 @@ def modify_data(file_path, boundary, route_mapping, **kwargs):
                 temp_trip = sorted(temp_trip, key=lambda x: x[3])
                 temp_trip = preprocess(temp_trip, **kwargs)
                 if len(temp_trip) > 1:
-                    if data.iloc[i]['route_slug'] in route_mapping.keys():
-                        route_id = route_mapping[data.iloc[i]['route_slug']]
-                    else:
-                        route_mapping[data.iloc[i]['route_slug']] = last_index
-                        route_id = last_index
-                        last_index += 1
+                    # route_id = global_index
+                    # if data.iloc[i]['route_slug'] in route_mapping.keys():
+                    #     route_id = route_mapping[data.iloc[i]['route_slug']]
+                    # else:
+                    #     route_mapping[data.iloc[i]['route_slug']] = last_index
+                    #     route_id = last_index
+                    #     last_index += 1
                     trajectories.append(
                         (
                             # np.int64(int(hashlib.md5(data.iloc[i]['route_slug'].encode('utf-8')).hexdigest(), 16) % (10**9)),
-                            route_id,
+                            global_index,
                             temp_trip
                         )
                     )
+                    global_index += 1
             temp_trip = []
             continue
 
@@ -174,22 +176,23 @@ def modify_data(file_path, boundary, route_mapping, **kwargs):
                 temp_trip = sorted(temp_trip, key=lambda x: x[3])
                 temp_trip = preprocess(temp_trip, **kwargs)
                 if len(temp_trip) > 1:
-                    if data.iloc[i]['route_slug'] in route_mapping.keys():
-                        route_id = route_mapping[data.iloc[i]['route_slug']]
-                    else:
-                        route_mapping[data.iloc[i]['route_slug']] = last_index
-                        route_id = last_index
-                        last_index += 1
+                    # if data.iloc[i]['route_slug'] in route_mapping.keys():
+                    #     route_id = route_mapping[data.iloc[i]['route_slug']]
+                    # else:
+                    #     route_mapping[data.iloc[i]['route_slug']] = last_index
+                    #     route_id = last_index
+                    #     last_index += 1
                     trajectories.append(
                         (
-                            route_id,
+                            global_index,
                             temp_trip
                         )
                     )
+                    global_index += 1
             temp_trip = []
     if len(trajectories) == 0:
         print('No bounded points')
-    return trajectories, route_mapping
+    return trajectories, global_index
 
 
 def load_data(file_path, boundary, file_dist):
@@ -199,7 +202,8 @@ def load_data(file_path, boundary, file_dist):
     prefix = ''.join(str(int(value)) for value in [
         boundary['west'], boundary['east'], boundary['south'], boundary['north']
     ])
-    route_mapping = {}
+    # route_mapping = {}
+    global_index = 0
     for dir_name in [x for x in os.listdir(file_path) if os.path.isdir(os.path.join(file_path, x)) and not x.startswith('.')]:
         if not os.path.exists(file_dist + '/' + prefix):
             os.makedirs(file_dist + '/' + prefix)
@@ -207,7 +211,8 @@ def load_data(file_path, boundary, file_dist):
         for file in files:
             if not file.endswith('.parquet'):
                 continue
-            trajectories, route_mapping = modify_data(os.path.join(file_path, dir_name, file), boundary, route_mapping)
+            # trajectories, route_mapping = modify_data(os.path.join(file_path, dir_name, file), boundary, route_mapping)
+            trajectories, global_index = modify_data(os.path.join(file_path, dir_name, file), boundary, global_index)
             if not trajectories:
                 continue
             file_name = file_dist + '/' + prefix + '/' + file.split('.snappy')[0]+'.csv'
@@ -225,13 +230,20 @@ def make_trajs(file_path):
         print('Path does not exists!')
         return
     trajectories = []
+    # print('here in make_trajs')
     for dir_name in [x for x in os.listdir(file_path) if os.path.isdir(os.path.join(file_path, x)) and not x.startswith('.')]:
         files = sorted(os.listdir(os.path.join(file_path, dir_name)))
-        for file in files:
-            print(len(trajectories))
+        # print(files)
+        for file in tqdm(files, total=len(files)):
+            # print('size trajs:', sys.getsizeof(trajectories))
+            # print(file)
+            # print('len trajs:', len(trajectories))
             if not file.endswith('.csv'):
+                # print('not found csv')
                 continue
             data = pd.read_csv(os.path.join(file_path, dir_name, file), sep=',', header=0, engine='python')
+            # print('size data:', sys.getsizeof(data))
+            # print('len data:', len(data))
             altitudes = []
             line = []
             bearings = []
@@ -242,13 +254,16 @@ def make_trajs(file_path):
                 altitudes.append(str(point['altitude']))
                 bearings.append(str(point['bearing']))
                 speeds.append(str(point['speed']))
+                # print(len(line), end='\r')
                 if point['route_id'] != data.iloc[i+1]['route_id']:
+                    # print('size innerdata:', sys.getsizeof(line), sys.getsizeof(altitudes), sys.getsizeof(bearings), sys.getsizeof(speeds))
                     traj_line = LineString(line)
                     trajectories.append((point['route_id'], traj_line, ','.join(altitudes), ','.join(bearings), ','.join(speeds)))
                     # trajectories.append((point['route_id'], traj_line, ','.join(bearings), ','.join(speeds)))
                     line = []
                     bearings = []
                     speeds = []
+                    altitudes = []
     return trajectories
 
 def csv2trajs(dir_path):
