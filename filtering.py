@@ -2,6 +2,8 @@ import pandas as pd
 from shapely import wkb
 from shapely.geometry import LineString
 import geopandas as gp
+from tqdm import tqdm
+import glob
 import hashlib
 import sqlite3
 import datetime
@@ -135,7 +137,8 @@ def modify_data(file_path, boundary, route_mapping, **kwargs):
     print(file_path)
     last_index = len(route_mapping)
 
-    for i in range(len(data['device_id'])):
+    # for i in range(len(data['device_id'])):
+    for i in range(len(data)):
         if data.iloc[i]['in_bound']:
             temp_trip.append([
                 data.iloc[i]['location'][0],
@@ -214,7 +217,7 @@ def load_data(file_path, boundary, file_dist):
                 for trajectory in trajectories:
                     for point in trajectory[1]:
                         csv_writer.writerow([trajectory[0]]+point)
-    return file_dist
+    return file_dist + '/' + prefix + '/'
 
 
 def make_trajs(file_path):
@@ -225,6 +228,7 @@ def make_trajs(file_path):
     for dir_name in [x for x in os.listdir(file_path) if os.path.isdir(os.path.join(file_path, x)) and not x.startswith('.')]:
         files = sorted(os.listdir(os.path.join(file_path, dir_name)))
         for file in files:
+            print(len(trajectories))
             if not file.endswith('.csv'):
                 continue
             data = pd.read_csv(os.path.join(file_path, dir_name, file), sep=',', header=0, engine='python')
@@ -247,11 +251,34 @@ def make_trajs(file_path):
                     speeds = []
     return trajectories
 
+def csv2trajs(dir_path):
+    all_files = sorted(glob.glob(os.path.join(dir_path, "*.csv")))
+    each_file_df = (pd.read_csv(f) for f in all_files)
+    all_trajs = pd.concat(each_file_df, ignore_index=True)
+    all_trajs['pre_route_id'] = all_trajs.route_id.shift(1)
+    all_trajs = all_trajs[1:]
+    all_trajs['pre_route_id'] = all_trajs['pre_route_id'].astype(np.int32)
+    trajs_list = []
+    first, last = 0, 0
+    list2str = lambda x: ','.join([str(y) for y in x])
+    all_trajs.reset_index(drop=True, inplace=True)
+    for index, row in tqdm(all_trajs.iterrows(), total=len(all_trajs)):
+        if row['route_id'] != row['pre_route_id']:
+            last = index
+            idx_df = all_trajs.iloc[first:last]
+            traj_list = list(zip(idx_df.longitude.values, idx_df.latitude.values))
+            trajs_list.append(
+                (row['pre_route_id'], LineString(traj_list), list2str(idx_df.altitude.tolist()),
+                 list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
+            )
+            first = index
+    return trajs_list
+
 
 def trajToShape(source_path, dist_path):
-    trajectories = make_trajs(source_path)
+    # trajectories = make_trajs(source_path)
+    trajectories = csv2trajs(source_path)
     df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'altitude', 'bearing', 'speed'])
-    # df = pd.DataFrame(trajectories, columns=['id', 'geometry', 'bearing', 'speed'])
     df = gp.GeoDataFrame(df, geometry='geometry')
     df.to_file(dist_path, driver='ESRI Shapefile')
 

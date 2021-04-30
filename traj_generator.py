@@ -42,8 +42,8 @@ if __name__ == '__main__':
             large_size=large_size_files
         )
     else:
-        _ = load_data(args.data_directory, boundary, args.csv_output_directory)
+        csvfiles_dir = load_data(args.data_directory, boundary, args.csv_output_directory)
         traj_directory = '/'.join(args.shape_output_directory.split('/')[:-1])
         if not os.path.exists(traj_directory):
             os.makedirs(traj_directory)
-        trajToShape(args.csv_output_directory, args.shape_output_directory)
+        trajToShape(csvfiles_dir, args.shape_output_directory)
