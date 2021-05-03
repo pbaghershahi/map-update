@@ -119,6 +119,7 @@ def preprocess(trip, **kwargs):
 
 
 def modify_data(file_path, boundary, global_index, **kwargs):
+    print(file_path)
     data = pd.read_parquet(file_path)
     # data.sort_values(['route_slug'], inplace=True)
     # data.reset_index(drop=True, inplace=True)
@@ -134,7 +135,6 @@ def modify_data(file_path, boundary, global_index, **kwargs):
     )
     trajectories = []
     temp_trip = []
-    print(file_path)
     # last_index = len(route_mapping)
 
     # for i in range(len(data['device_id'])):
@@ -282,10 +282,11 @@ def csv2trajs(dir_path):
             last = index
             idx_df = all_trajs.iloc[first:last]
             traj_list = list(zip(idx_df.longitude.values, idx_df.latitude.values))
-            trajs_list.append(
-                (row['pre_route_id'], LineString(traj_list), list2str(idx_df.altitude.tolist()),
-                 list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
-            )
+            if len(traj_list) > 1:
+                trajs_list.append(
+                    (row['pre_route_id'], LineString(traj_list), list2str(idx_df.altitude.tolist()),
+                     list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
+                )
             first = index
     return trajs_list
 

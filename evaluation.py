@@ -28,27 +28,25 @@ if __name__ == '__main__':
                         help='threshold to filter unmatched edges and dropped edges by cosine similarity in degrees')
     parser.add_argument('--min_len', type=float, default=20,
                         help='minimum length of dropped edges which the algorithm can infer in meters')
-    parser.add_argument('--min_crossing', type=int, default=1,
+    parser.add_argument('--min_crossing', type=int, default=5,
                         help='minimum number of crossing from dropped edges which the algorithm can infer')
     parser.add_argument('--results_save_path', type=str, default='results.txt',
                         help='path to save evaluation results in .txt format')
     args = parser.parse_args()
 
-    # matches = pd.read_csv('./data/unmatched_mr.csv', sep=';', index_col='id', engine='python')
     matches = pd.read_csv(args.match_path, sep=';', index_col='id', engine='python')
-    # trajs_matches = pd.read_csv('./data/trajs_mr.csv', sep=';', index_col='id', engine='python')
     trajs_matches = pd.read_csv(args.trajs_match, sep=';', index_col='id', engine='python')
     trajs_matches = trajs_matches[trajs_matches.opath.notna()]
-    # edges = gp.read_file('./data/inferred-edges/edges.shp')
     edges = gp.read_file(args.inferred_edges_path)
     edges.set_index('id', drop=True, inplace=True)
 
     unmatches = matches[matches.unmatch == False]
     unmatches['cross_edges'] = None
 
-    # dropped_edges = gp.read_file('./ground-map/map/dropped_edges.shp')
     dropped_edges = gp.read_file(args.dropped_map_path)
+    print(dropped_edges)
     dropped_edges.set_index('id', drop=True, inplace=True)
+    print(dropped_edges)
 
     for index, row in unmatches.iterrows():
         gen_edge = np.array(edges.loc[index].geometry.coords)
@@ -63,12 +61,16 @@ if __name__ == '__main__':
         if len(matched_edges) > 0:
             unmatches.cross_edges.loc[index] = ','.join(matched_edges)
 
-    dropped_edges = dropped_edges[dropped_edges.way_length > args.min_len]
+    # len_ommited = dropped_edges[dropped_edges.way_length < args.min_len]
+    dropped_edges = dropped_edges[dropped_edges.way_length >= args.min_len]
+    total_dropped_edges = dropped_edges.shape[0]
     dropped_edges['num_trips'] = 0
     for match_idx, row in trajs_matches.iterrows():
         for edge_idx in [int(k) for k in row.opath.split(',')]:
             if edge_idx in dropped_edges.index:
                 dropped_edges.num_trips.loc[edge_idx] += 1
+    # cross_ommited = dropped_edges[dropped_edges.num_trips < args.min_crossing]
+    # ommited = pd.concat([len_ommited, cross_ommited], ignore_index=True)
     dropped_edges = dropped_edges[dropped_edges.num_trips >= args.min_crossing]
 
     crossed_edges = set()
@@ -76,17 +78,19 @@ if __name__ == '__main__':
         crossed_edges = crossed_edges.union(set([int(x) for x in row.cross_edges.split(',')]))
 
     total_unmatched_edges = matches.shape[0]
-    total_dropped_edges = dropped_edges.shape[0]
+    # total_dropped_edges = dropped_edges.shape[0]
     num_true_edges = len(crossed_edges)
-    precision = num_true_edges/total_unmatched_edges
+    num_true_detection = len(unmatches[unmatches.cross_edges.notna()])
+    precision = num_true_detection/total_unmatched_edges
     recall = num_true_edges/total_dropped_edges
     f1_score = 2 * precision * recall / (precision + recall)
-    result_txt = f'{"*"*20}Final results:{"*"*20}\n'\
-                 f'Total number of inferred edges: {total_unmatched_edges}\n'\
-                 f'Total number of dropped edges: {total_dropped_edges}\n'\
-                 f'Number of correctly detected edges: {num_true_edges}\n'\
-                 f'Precision: {precision}\n'\
-                 f'Recall: {recall}\n'\
+    result_txt = f'{"*"*20}Final results:{"*"*20}\n' \
+                 f'Total number of inferred edges: {total_unmatched_edges}\n' \
+                 f'Total number of dropped edges: {total_dropped_edges}\n' \
+                 f'Number of detected edges: {num_true_edges}\n' \
+                 f'Number of true inferred edges: {num_true_detection}\n' \
+                 f'Precision: {precision}\n' \
+                 f'Recall: {recall}\n' \
                  f'F1-score: {f1_score}'
 
     output_dir = '/'.join(args.results_save_path.split('/')[:-1])

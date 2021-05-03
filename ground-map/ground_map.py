@@ -66,7 +66,8 @@ if __name__ == '__main__':
     )
     drop_indices = np.random.choice(
         edges[
-            (edges.highway == 'residential') &
+            # edges.highway.isin(['residential', 'secondary']) &
+            edges.highway.isin(['residential']) &
             (edges.in_bound == True)
             ].index, int(r_percent * len(edges)), replace=False
     )

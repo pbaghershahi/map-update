@@ -57,7 +57,7 @@ if __name__ == '__main__':
     parser.add_argument('--id_column_name', type=str, default='id', help='GPS id field/column name (default:id)')
     parser.add_argument('--write_opath', type=bool, default=False,
                         help='Include edge matched to each point of trajectory in output file (list of int)')
-    parser.add_argument('--write_cpath', type=bool, default=True,
+    parser.add_argument('--write_cpath', type=bool, default=False,
                         help='Include the path traversed by the trajectory in output file (list of int)')
     parser.add_argument('--write_length', type=bool, default=False,
                         help='Include length of the matched edge for each point in output file (list of floats)')

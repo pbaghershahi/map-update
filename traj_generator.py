@@ -47,5 +47,4 @@ if __name__ == '__main__':
         if not os.path.exists(traj_directory):
             os.makedirs(traj_directory)
         trajToShape(csvfiles_dir, args.shape_output_directory)
-        # trajToShape('./old-version/data/gps-csv/', './tt/trajs.shp')
-        # trajToShape('./data/gps-csv/', './tt/trajs.shp')
+        # trajToShape('./data/gps-csv/sample-data/', args.shape_output_directory)

@@ -6,6 +6,8 @@ from haversine import haversine, Unit
 import osmnx as ox
 import argparse, os
 import numpy as np
+from matplotlib.colors import ListedColormap
+
 
 def cos_similarity(a, b):
     return a@b/(np.linalg.norm(a)*np.linalg.norm(b))
@@ -22,11 +24,13 @@ if __name__ == '__main__':
                         help='Path to saved dropped ground truth map in shape format (.shp)')
     parser.add_argument('--filtered_map_path', type=str, default='',
                         help='Path to saved filtered ground truth map in shape format (.shp)')
+    parser.add_argument('--all_map_path', type=str, default='',
+                        help='Path to saved all ground truth map in shape format (.shp)')
     parser.add_argument('--cut_thresh', type=float, default=25,
                         help='threshold to filter unmatched edges and dropped edges by cosine similarity in degrees')
     parser.add_argument('--min_len', type=float, default=20,
                         help='minimum length of dropped edges which the algorithm can infer in meters')
-    parser.add_argument('--min_crossing', type=int, default=1,
+    parser.add_argument('--min_crossing', type=int, default=5,
                         help='minimum number of crossing from dropped edges which the algorithm can infer')
     parser.add_argument('--plot_matches', type=bool, default=False,
                         help='plot matched results (default: False)')
@@ -47,13 +51,6 @@ if __name__ == '__main__':
     trajs_matches = trajs_matches[trajs_matches.opath.notna()]
     edges = gp.read_file(args.inferred_edges_path)
     edges.set_index('id', drop=True, inplace=True)
-
-
-    # matches = pd.read_csv('./data/unmatched_mr.csv', sep=';', index_col='id', engine='python')
-    # trajs_matches = pd.read_csv('./data/trajs_mr.csv', sep=';', index_col='id', engine='python')
-    # trajs_matches = trajs_matches[trajs_matches.opath.notna()]
-    # edges = gp.read_file('./data/inferred-edges/edges.shp')
-    # edges.set_index('id', drop=True, inplace=True)
 
     if not args.plot_matches:
         plot_matches = False
@@ -91,28 +88,42 @@ if __name__ == '__main__':
     else:
         unmatched_edges = edges
 
+    fig, ax = plt.subplots(figsize=(12, 8))
+    cmap = ListedColormap(['yellow'])
+
     if args.background_map == 'dropped':
-        dropped_edges = dropped_edges[dropped_edges.way_length > args.min_len]
+        len_ommited = dropped_edges[dropped_edges.way_length < args.min_len]
+        dropped_edges = dropped_edges[dropped_edges.way_length >= args.min_len]
         dropped_edges['num_trips'] = 0
         for match_idx, row in trajs_matches.iterrows():
             for edge_idx in [int(k) for k in row.opath.split(',')]:
                 if edge_idx in dropped_edges.index:
                     dropped_edges.num_trips.loc[edge_idx] += 1
+        cross_ommited = dropped_edges[dropped_edges.num_trips < args.min_crossing]
+        ommited = pd.concat([len_ommited, cross_ommited], ignore_index=True)
         dropped_edges = dropped_edges[dropped_edges.num_trips >= args.min_crossing]
-        dropped_edges.plot()
+        cross_ommited.plot(color='y', ax=ax, legend=True, alpha=0.3, label='not enough crossings')
+        dropped_edges.plot(color='b', ax=ax, legend=True, label='dropped edges')
     elif args.background_map == 'filtered':
         filtered_edges = gp.read_file(args.filtered_map_path)
         filtered_edges.set_index('id', drop=True, inplace=True)
-        filtered_edges.plot()
+        filtered_edges.plot(color='b', ax=ax, legend=True, label='filtered edges')
     else:
         print('Not a valid background!')
 
+
+    counter = 0
     for index, row in unmatched_edges.iterrows():
         coords = list(row.geometry.coords)
-        plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r')
+        if counter == len(unmatched_edges)-1:
+            plotting = ax.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r', label='detected edges')
+        else:
+            plotting = ax.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r')
+        counter += 1
 
     output_dir = '/'.join(args.figure_save_path.split('/')[:-1])
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    plt.savefig(args.figure_save_path, dpi=300)
+    ax.legend()
+    fig.savefig(args.figure_save_path, dpi=300)
     # plt.show()

@@ -32,8 +32,11 @@ def partition_area(boundary, n_vertical, n_horizontal):
     horz_bounds = list(zip(horz_ends[:-1], horz_ends[1:]))
     return vert_bounds, horz_bounds
 
-n_vertical = 2
-n_horizontal = 4
+n_vertical = 3
+n_horizontal = 3
+min_length = 20
+min_crossing = 1
+cut_thresh = 25
 with open('./utils/bounding_box.txt', 'r') as bbx_file:
     north, south, east, west = [float(line.strip('\n').split('=')[1]) for line in bbx_file]
 
@@ -45,8 +48,10 @@ boundary = dict(
 )
 vert_bounds, horz_bounds = partition_area(boundary, n_vertical, n_horizontal)
 
-results, errors = execute('python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp')
-results, errors = execute('python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40')
+# results, errors = execute('python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp')
+# print(errors)
+# results, errors = execute('python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40')
+# print(errors)
 for vert_bound in vert_bounds:
     for horz_bound in horz_bounds:
         boundary = dict(
@@ -67,43 +72,60 @@ for vert_bound in vert_bounds:
         split_threshold = 50000
         trajs_dirpath = './data/gps-csv/sample-area/'
         csv_dirpath = './data/gps-csv/'
-        _ = traj_partition(trajs_dirpath, boundary, csv_dirpath, split_threshold)
+        # _ = traj_partition(trajs_dirpath, boundary, csv_dirpath, split_threshold)
         groundmap_dir = os.path.join('./ground-map/map/', output_dir)
         csv_dirpath = os.path.join(csv_dirpath, output_dir)
         results_path = os.path.join('./results/kde/', output_dir)
         inference_path = os.path.join('./data/', output_dir)
         match_path = os.path.join('./data/', output_dir)
         results, errors = execute(f'python ground-map/ground_map.py --bounding_box_path ./utils/{bb_path} --ground_map_path {groundmap_dir}/all_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp')
+        print(errors)
         print('*'*50)
         results, errors = execute(f'python kde/kde.py --trajs_path {csv_dirpath} --kde_output_path {results_path}/kde.png --raw_output_path {results_path}/raw_data.png --bounding_box_path ./utils/{bb_path}')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python kde/skeleton.py --input_image_file {results_path}/kde.png --output_image_file {results_path}/skeleton.png --output_skeleton_dir {results_path}/skeleton-images/ --closing_radius 6')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python kde/graph_extract.py --skeleton_image_path {results_path}/skeleton.png --bounding_box_path ./utils/{bb_path} --output_file_path {results_path}/skeleton-maps/skeleton_map_1m.db')
+        print(errors)
         print('*' * 50)
-        results, errors = execute(f'python edge_traj.py --map_dbpath {results_path}/skeleton-maps/skeleton_map_1m.db --shape_output_path {inference_path}/edges.shp --n_edge_splits 9 --min_length 20')
+        results, errors = execute(f'python edge_traj.py --map_dbpath {results_path}/skeleton-maps/skeleton_map_1m.db --shape_output_path {inference_path}/edges.shp --n_edge_splits 9 --min_length {min_length}')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python matching/match.py --ground_map_path {groundmap_dir}/filtered_edges.shp --trajs_path {inference_path}/edges.shp --add_score True --save_unmatched True --write_opath True --output_file_path {match_path}/mr.csv --radius 20 --gps_error 20 --n_edge_split 9 --overlap_portion 0.5')
+        print(errors)
         print('*' * 50)
-        results, errors = execute(f'python matching/match.py --ground_map_path {groundmap_dir}/dropped_edges.shp --trajs_path {match_path}/unmatched.shp --add_score True --output_file_path {match_path}/unmatched_mr.csv --write_opath True --radius 60 --gps_error 40 --n_edge_split 9 --overlap_portion 0.33')
+        results, errors = execute(f'python matching/match.py --ground_map_path {groundmap_dir}/dropped_edges.shp --trajs_path {match_path}/unmatched.shp --add_score True --output_file_path {match_path}/unmatched_mr.csv --write_opath True --radius 60 --gps_error 40 --n_edge_split 9 --overlap_portion 0.3')
+        print(errors)
         print('*' * 50)
-        results, errors = execute(f'python evaluation.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --results_save_path {results_path}/evaluation_results.txt')
+        results, errors = execute(f'python evaluation.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --results_save_path {results_path}/evaluation_results_filtered.txt --min_len {min_length} --min_crossing {min_crossing} --cut_thresh {cut_thresh}')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_with_cs_dropped.png --apply_cos_sim True --background_map dropped')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_with_cs_filtered.png --apply_cos_sim True --background_map filtered')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/False_with_cs_dropped.png --apply_cos_sim True --false_edges True --background_map dropped')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/False_with_cs_filtered.png --apply_cos_sim True --false_edges True --background_map filtered')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_without_cs_dropped.png --background_map dropped')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/unmatched_dropped.png --plot_matches True --background_map dropped')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/unmatched_filtered.png --plot_matches True --background_map filtered')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/matched_dropped.png --background_map dropped')
+        print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/all_filtered.png --plot_all_edges True --background_map filtered')
+        print(errors)
         print('*'*50)

@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Draw a polygon and calculate its area</title>
+<title>Map Updating</title>
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
 <link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
@@ -15,19 +15,81 @@ body { margin: 0; padding: 0; }
 
 <style>
 
-    /*.container {*/
-	/*		max-width: 70%;*/
-	/*		max-height: 50%;*/
+    .map-overlay {
+        font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        position: absolute;
+        text-align: center;
+        /*bottom: 40px;*/
+        /*left: 10px;*/
+        width: 175px;
+        top: 0;
+        left: 0;
+        padding: 10px;
+    }
 
-	/*		margin-left: auto;*/
-	/*		margin-right: auto;*/
-	/*	}*/
-    /*.inputBox {*/
-    /*    width: 50%;*/
-    /*    padding: 12px 20px;*/
-    /*    margin: 8px 0;*/
-    /*    box-sizing: border-box;*/
-    /*}*/
+    .map-overlay .map-overlay-inner {
+        background-color: #fff;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        border-radius: 3px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+
+    .map-overlay-inner fieldset {
+        border: none;
+        padding: 0;
+        margin: 0 0 10px;
+    }
+
+    .map-overlay-inner fieldset:last-child {
+        margin: 0;
+    }
+
+    .map-overlay-inner select {
+        width: 100%;
+    }
+
+    .map-overlay-inner p {
+        margin: 0;
+    }
+
+    .map-overlay-inner label {
+        display: block;
+        font-weight: bold;
+    }
+
+    .map-overlay-inner button {
+        background-color: cornflowerblue;
+        color: white;
+        border-radius: 5px;
+        display: inline-block;
+        height: 30px;
+        width: 150px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .map-overlay-inner button:focus {
+        outline: none;
+    }
+
+    .map-overlay-inner button:hover {
+        background-color: blue;
+        box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.1);
+        -webkit-transition: background-color 500ms linear;
+        -ms-transition: background-color 500ms linear;
+        transition: background-color 500ms linear;
+    }
+
+    .offset > label,
+    .offset > input {
+        display: inline;
+    }
+
+    #animateLabel {
+        display: inline-block;
+        min-width: 20px;
+    }
     .button {
         background-color: #4CAF50;
         border: none;
@@ -43,7 +105,7 @@ body { margin: 0; padding: 0; }
     }
 
     .calculation-box {
-        height: 75px;
+        height: 50px;
         width: 150px;
         position: absolute;
         bottom: 40px;
@@ -60,7 +122,12 @@ body { margin: 0; padding: 0; }
         font-size: 13px;
     }
 
-    .map-overlay {
+    span, input {
+    margin: 0;
+}
+
+    /*.map-overlay {*/
+    .map-submit-overlay {
     font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
     position: absolute;
     width: 200px;
@@ -69,49 +136,6 @@ body { margin: 0; padding: 0; }
     padding: 10px;
     }
 
-    /*.map-overlay .map-overlay-inner {*/
-    /*background-color: #fff;*/
-    /*box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);*/
-    /*border-radius: 3px;*/
-    /*padding: 10px;*/
-    /*margin-bottom: 10px;*/
-    /*}*/
-
-    /*.map-overlay-inner fieldset {*/
-    /*border: none;*/
-    /*padding: 0;*/
-    /*margin: 0 0 10px;*/
-    /*}*/
-
-    /*.map-overlay-inner fieldset:last-child {*/
-    /*margin: 0;*/
-    /*}*/
-
-    /*.map-overlay-inner select {*/
-    /*width: 100%;*/
-    /*}*/
-
-    /*.map-overlay-inner label {*/
-    /*display: block;*/
-    /*font-weight: bold;*/
-    /*margin: 0 0 5px;*/
-    /*}*/
-
-    /*.map-overlay-inner button {*/
-    /*display: inline-block;*/
-    /*width: 36px;*/
-    /*height: 20px;*/
-    /*border: none;*/
-    /*cursor: pointer;*/
-    /*}*/
-
-    /*.map-overlay-inner button:focus {*/
-    /*outline: none;*/
-    /*}*/
-
-    /*.map-overlay-inner button:hover {*/
-    /*box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.1);*/
-    /*}*/
 </style>
 
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
@@ -119,31 +143,63 @@ body { margin: 0; padding: 0; }
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.2/mapbox-gl-draw.js"></script>
 <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.2.2/mapbox-gl-draw.css" type="text/css">
 <div id="map"></div>
+<!--<div class="map-submit-overlay top">-->
+<!--    <button class="button" onclick="getLonLat()">Submit</button>-->
+<!--</div>-->
 <div class="map-overlay top">
-<!--    <div class="map-overlay-inner">-->
+    <div class="map-overlay-inner">
 <!--        <fieldset>-->
-<!--            <label>Select layer</label>-->
-<!--            <select id="layer" name="layer">-->
-<!--                <option value="water">Water</option>-->
-<!--                <option value="building">Buildings</option>-->
+<!--            <label>Select easing function</label>-->
+<!--            <select id="easing" name="easing">-->
+<!--                <option value="easeInCubic">Ease In Cubic</option>-->
+<!--                <option value="easeOutQuint">Ease Out Quint</option>-->
+<!--                <option value="easeInOutCirc">Ease In/Out Circ</option>-->
+<!--                <option value="easeOutBounce">Ease Out Bounce</option>-->
 <!--            </select>-->
 <!--        </fieldset>-->
 <!--        <fieldset>-->
-<!--            <label>Choose a color</label>-->
-<!--            <div id="swatches"></div>-->
+<!--            <label for="duration">Set animation duration</label>-->
+<!--            <p id="durationValue"></p>-->
+<!--            <input type="range" id="duration" name="duration" min="0" max="10000" step="500" value="1000">-->
 <!--        </fieldset>-->
-<!--    </div>-->
-    <button class="button" onclick="getLonLat()">Submit</button>
+<!--        <fieldset>-->
+<!--            <label>Animate camera motion</label>-->
+<!--            <label for="animate" id="animateLabel">Yes</label>-->
+<!--            <input type="checkbox" id="animate" name="animate" checked="">-->
+<!--        </fieldset>-->
+<!--        <fieldset class="setting">-->
+<!--            <label for="min-length">minimum-length</label>-->
+<!--            <input type="number" id="min-length" name="min-length" min="10" max="200" step="1" value="20">-->
+<!--        </fieldset>-->
+        <fieldset class="setting">
+            <label for="min-length">Set minimum length</label>
+            <input type="range" id="min-length" name="min-length" min="10" max="200" step="0.5" value="20">
+            <p id="length"></p>
+        </fieldset>
+        <fieldset class="setting">
+            <label for="min-crossing">minimum-crossings</label>
+            <input type="number" id="min-crossing" name="min-crossing" min="1" step="1" value="5">
+        </fieldset>
+        <fieldset class="split">
+            <label for="vertical-split">vertical-segments</label>
+            <input type="number" id="vertical-split" name="vertical-split" min="1" max="20" step="1" value="1">
+        </fieldset>
+        <fieldset class="split">
+            <label for="horizontal-split">horizontal-segments</label>
+            <input type="number" id="horizontal-split" name="horizontal-split" min="1" max="20" step="1" value="1">
+<!--            <p>Offsets can be negative</p>-->
+        </fieldset>
+        <p style="color: #BEBEBE; font-size: 11px">Hint: draw a sample rectangular boundary, press enter, and click the below button</p>
+        <button type="button" onclick="runupdater()" id="lunch-updating" name="lunch-updating" style="margin:10px">
+            Lunch Updating
+        </button>
+            <p>Total area in bound:</p>
+    <p id="calculated-area"></p>
+    </div>
 </div>
-<div class="calculation-box">
-    <p>Draw a polygon using the draw tools.</p>
-    <div id="calculated-area"></div>
-</div>
-
-<!--<div class="container">-->
-
-<!--    <button class="button" onclick="getLonLat()"> Submit</button>-->
-
+<!--<div class="calculation-box">-->
+<!--    <p>Total Area in bound:</p>-->
+<!--    <div id="calculated-area"></div>-->
 <!--</div>-->
 
 <script>
@@ -171,22 +227,111 @@ body { margin: 0; padding: 0; }
     map.on('draw.delete', updateArea);
     map.on('draw.update', updateArea);
 
-    // map.on('load', function () {
-    //
-    // // *****************************************************************
-    // // Add the following code to end of stop_locations for each function
-    // // *****************************************************************
-    //
-    // stop_locations.forEach(function(marker, index) {
-    //
-    //     // Create location buttons
-    //     var button = document.createElement('button');
-    //     button.className = 'location_btn';
-    //     button.value = marker.properties.location_index;
-    //     button.innerHTML = "Day " + (index + 1) + " - " + marker.properties.title;
-    //     $(".overlay").append(button)
-    // });
-    // });
+    var length = document.getElementById('length');
+    var min_length = document.getElementById('min-length')
+    length.innerHTML = min_length.value + ' meters';
+    min_length.addEventListener('change', function (e) {
+        length.innerHTML = e.target.value + ' meters';
+    });
+    var min_crossing = document.getElementById('min-crossing').value
+    var vertical_split = document.getElementById('vertical-split').value
+    var horizontal_split = document.getElementById('horizontal-split').value
+
+    function runupdater(){
+    var min_length = document.getElementById('min-length')
+    var min_crossing = document.getElementById('min-crossing').value
+    var vertical_split = document.getElementById('vertical-split').value
+    var horizontal_split = document.getElementById('horizontal-split').value
+        $.ajax({
+            type : 'POST',
+            url : '/',
+            contentType: 'application/json;charset=UTF-8',
+            data: JSON.stringify(
+                {
+                    submit: 'true',
+                    min_length: min_length.value,
+                    min_crossing: min_crossing,
+                    vertical_split: vertical_split,
+                    horizontal_split: horizontal_split
+                }
+            ),
+            dataType: "json",
+            success: function(response) {
+                console.log(response);
+                },
+            error: function(err) {
+                console.log(err);
+            }
+        });
+    }
+
+    var animateButton = document.getElementById('animateButton');
+        //     $.ajax({
+        //     type : 'POST',
+        //     url : '/',
+        //     contentType: 'application/json;charset=UTF-8',
+        //     data: JSON.stringify({fx: animateButton}),
+        //     dataType: "json",
+        //     success: function(response) {
+        //         console.log(response);
+        //         },
+        //     error: function(err) {
+        //         console.log(err);
+        //     }
+        // });
+    animateButton.addEventListener('click', function () {
+        var easingInput = document.getElementById('easing');
+        var easingFn =
+            easingFunctions[
+                easingInput.options[easingInput.selectedIndex].value
+            ];
+        var duration = parseInt(durationInput.value, 10);
+        var animate = animateValue.checked;
+        var offsetX = parseInt(
+            document.getElementById('offset-x').value,
+            10
+        );
+        var offsetY = parseInt(
+            document.getElementById('offset-y').value,
+            10
+        );
+
+
+        // var animationOptions = {
+        //     duration: duration,
+        //     easing: easingFn,
+        //     offset: [offsetX, offsetY],
+        //     animate: animate,
+        //     essential: true // animation will happen even if user has `prefers-reduced-motion` setting on
+        // };
+        //
+        // // Create a random location to fly to by offsetting the map's
+        // // initial center point by up to 10 degrees.
+        // var center = [
+        //     -95 + (Math.random() - 0.5) * 20,
+        //     40 + (Math.random() - 0.5) * 20
+        // ];
+        //
+        // // merge animationOptions with other flyTo options
+        // animationOptions.center = center;
+        //
+        // map.flyTo(animationOptions);
+        // // update 'center' source and layer to show our new map center
+        // // compare this center point to where the camera ends up when an offset is applied
+        // map.getSource('center').setData({
+        //     'type': 'Point',
+        //     'coordinates': center
+        // });
+        // map.setLayoutProperty(
+        //     'center',
+        //     'text-field',
+        //     'Center: [' +
+        //         center[0].toFixed(1) +
+        //         ', ' +
+        //         center[1].toFixed(1) +
+        //         ']'
+        // );
+    });
 
     function updateArea(e) {
         var data = draw.getAll();
@@ -221,21 +366,21 @@ body { margin: 0; padding: 0; }
         });
     }
 
-    function getLonLat(){
-            $.ajax({
-                type : 'POST',
-                url : '/',
-                contentType: 'application/json;charset=UTF-8',
-                data: JSON.stringify({submit: "true"}),
-                dataType: "json",
-                success: function(response) {
-                    console.log(response);
-                    },
-                error: function(err) {
-                    console.log(err);
-                }
-            });
-    }
+    // function getLonLat(){
+    //         $.ajax({
+    //             type : 'POST',
+    //             url : '/',
+    //             contentType: 'application/json;charset=UTF-8',
+    //             data: JSON.stringify({submit: "true"}),
+    //             dataType: "json",
+    //             success: function(response) {
+    //                 console.log(response);
+    //                 },
+    //             error: function(err) {
+    //                 console.log(err);
+    //             }
+    //         });
+    // }
 </script>
 
 </body>
