@@ -48,10 +48,10 @@ boundary = dict(
 )
 vert_bounds, horz_bounds = partition_area(boundary, n_vertical, n_horizontal)
 
-# results, errors = execute('python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp')
-# print(errors)
-# results, errors = execute('python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40')
-# print(errors)
+results, errors = execute('python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp')
+print(errors)
+results, errors = execute('python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40')
+print(errors)
 for vert_bound in vert_bounds:
     for horz_bound in horz_bounds:
         boundary = dict(
@@ -72,7 +72,7 @@ for vert_bound in vert_bounds:
         split_threshold = 50000
         trajs_dirpath = './data/gps-csv/sample-area/'
         csv_dirpath = './data/gps-csv/'
-        # _ = traj_partition(trajs_dirpath, boundary, csv_dirpath, split_threshold)
+        _ = traj_partition(trajs_dirpath, boundary, csv_dirpath, split_threshold)
         groundmap_dir = os.path.join('./ground-map/map/', output_dir)
         csv_dirpath = os.path.join(csv_dirpath, output_dir)
         results_path = os.path.join('./results/kde/', output_dir)
@@ -99,7 +99,10 @@ for vert_bound in vert_bounds:
         results, errors = execute(f'python matching/match.py --ground_map_path {groundmap_dir}/dropped_edges.shp --trajs_path {match_path}/unmatched.shp --add_score True --output_file_path {match_path}/unmatched_mr.csv --write_opath True --radius 60 --gps_error 40 --n_edge_split 9 --overlap_portion 0.3')
         print(errors)
         print('*' * 50)
-        results, errors = execute(f'python evaluation.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --results_save_path {results_path}/evaluation_results_filtered.txt --min_len {min_length} --min_crossing {min_crossing} --cut_thresh {cut_thresh}')
+        results, errors = execute(f'python evaluation.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --results_save_path {results_path}/evaluation_results.txt --min_len {min_length} --min_crossing {min_crossing} --cut_thresh {cut_thresh}')
+        print(errors)
+        print('*' * 50)
+        results, errors = execute(f'python evaluation.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --results_save_path {results_path}/evaluation_results_consider_not_enough_crossing.txt --min_len {min_length} --min_crossing {min_crossing} --cut_thresh {cut_thresh} --consider_not_enough_crossing True')
         print(errors)
         print('*' * 50)
         results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_with_cs_dropped.png --apply_cos_sim True --background_map dropped')

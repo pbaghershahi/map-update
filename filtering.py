@@ -85,7 +85,7 @@ def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=2):
     return filtered_trip
 
 
-def spd_preprocess(trip, max_spd_threshold=25, min_spd_threshold=2):
+def spd_preprocess(trip, max_spd_threshold=26, min_spd_threshold=2):
     #note: this function just filter data based on avergae speed between two points, not based on the point gps point speed
     filtered_trip = []
     counter = 0

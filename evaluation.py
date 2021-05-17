@@ -28,6 +28,8 @@ if __name__ == '__main__':
                         help='threshold to filter unmatched edges and dropped edges by cosine similarity in degrees')
     parser.add_argument('--min_len', type=float, default=20,
                         help='minimum length of dropped edges which the algorithm can infer in meters')
+    parser.add_argument('--consider_not_enough_crossing', type=bool, default=False,
+                        help='consider not enough crossing roads or not. default: False')
     parser.add_argument('--min_crossing', type=int, default=5,
                         help='minimum number of crossing from dropped edges which the algorithm can infer')
     parser.add_argument('--results_save_path', type=str, default='results.txt',
@@ -63,7 +65,7 @@ if __name__ == '__main__':
 
     # len_ommited = dropped_edges[dropped_edges.way_length < args.min_len]
     dropped_edges = dropped_edges[dropped_edges.way_length >= args.min_len]
-    total_dropped_edges = dropped_edges.shape[0]
+    after_len_deletion = dropped_edges.shape[0]
     dropped_edges['num_trips'] = 0
     for match_idx, row in trajs_matches.iterrows():
         for edge_idx in [int(k) for k in row.opath.split(',')]:
@@ -78,7 +80,10 @@ if __name__ == '__main__':
         crossed_edges = crossed_edges.union(set([int(x) for x in row.cross_edges.split(',')]))
 
     total_unmatched_edges = matches.shape[0]
-    # total_dropped_edges = dropped_edges.shape[0]
+    if args.consider_not_enough_crossing:
+        total_dropped_edges = dropped_edges.shape[0]
+    else:
+        total_dropped_edges = after_len_deletion
     num_true_edges = len(crossed_edges)
     num_true_detection = len(unmatches[unmatches.cross_edges.notna()])
     precision = num_true_detection/total_unmatched_edges
