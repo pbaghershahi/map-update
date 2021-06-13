@@ -321,7 +321,7 @@ def load_unmatched(file_path, unmatches, file_dist):
     return file_dist
 
 
-def edgeToShape(map_dbpath, dist_path, min_length=20, n=5):
+def edgeToShape(map_dbpath, dist_path, min_length=20, n=5, no_postprocess=True):
     con = sqlite3.connect(map_dbpath)
     edges_df = pd.read_sql_query("SELECT id, in_node, out_node, weight FROM edges", con)
     nodes_df = pd.read_sql_query("SELECT id, latitude, longitude, weight FROM nodes", con)
@@ -329,25 +329,25 @@ def edgeToShape(map_dbpath, dist_path, min_length=20, n=5):
     # find the start and end nodes coordinates for each edge of the edges table
     # based on nodes of the nodes table
     # filter edges by minimum length
-    edges_df['way_length'] = edges_df.apply(
-        lambda row: haversine(
-            (nodes_df.loc[row.in_node].latitude, nodes_df.loc[row.in_node].longitude),
-            (nodes_df.loc[row.out_node].latitude, nodes_df.loc[row.out_node].longitude),
-            unit=Unit.METERS
+    if no_postprocess:
+        edges_df['way_length'] = edges_df.apply(
+            lambda row: haversine(
+                (nodes_df.loc[row.in_node].latitude, nodes_df.loc[row.in_node].longitude),
+                (nodes_df.loc[row.out_node].latitude, nodes_df.loc[row.out_node].longitude),
+                unit=Unit.METERS
             ),
-        axis=1)
-    edges_df = edges_df[edges_df.way_length > min_length]
-    edges_df['in_out'] = edges_df[['in_node', 'out_node']].apply(
-        lambda x: tuple(y for y in x), axis=1
-    )
-    unique_indices = []
-    for index, row in edges_df.iterrows():
-        if row.in_out[::-1] not in unique_indices:
-            unique_indices.append(row.in_out)
-    edges_df = edges_df[edges_df.in_out.isin(unique_indices)]
-    edges_df.reset_index(drop=True, inplace=True)
+            axis=1)
+        edges_df = edges_df[edges_df.way_length > min_length]
+        edges_df['in_out'] = edges_df[['in_node', 'out_node']].apply(
+            lambda x: tuple(y for y in x), axis=1
+        )
+        unique_indices = []
+        for index, row in edges_df.iterrows():
+            if row.in_out[::-1] not in unique_indices:
+                unique_indices.append(row.in_out)
+        edges_df = edges_df[edges_df.in_out.isin(unique_indices)]
+        edges_df.reset_index(drop=True, inplace=True)
     edges = pd.DataFrame({'id': edges_df.index + 1})
-    edges['way_length'] = edges_df['way_length']
     edges['geometry'] = edges_df.apply(
         lambda row: LineString(
             insert_nodes(
