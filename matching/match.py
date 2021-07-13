@@ -69,6 +69,8 @@ if __name__ == '__main__':
                         help='Include original trajectory geometry in output file (string)')
     parser.add_argument('--write_mgeom', type=bool, default=False,
                         help='Include the geometry of the cpath in output file (string)')
+    parser.add_argument('--write_spdist', type=bool, default=False,
+                        help='Include the geometry of the spdist in output file (string)')
     parser.add_argument('--write_offset', type=bool, default=False,
                         help='Include distance from the matched point to the start of the matched edge in output file (list of floats)')
     parser.add_argument('--write_error', type=bool, default=True,
@@ -115,15 +117,16 @@ if __name__ == '__main__':
 
     result_config = ResultConfig()
     result_config.file = args.output_file_path
-    result_config.output_config.write_opath = args.write_opath
-    result_config.output_config.write_cpath = args.write_cpath
-    result_config.output_config.write_length = args.write_length
-    result_config.output_config.write_ep = args.write_ep
-    result_config.output_config.write_tp = args.write_tp
-    result_config.output_config.write_ogeom = args.write_ogeom
-    result_config.output_config.write_mgeom = args.write_mgeom
-    result_config.output_config.write_offset = args.write_offset
-    result_config.output_config.write_error = args.write_error
+    result_config.output_config.write_opath = True if args.write_opath else False
+    result_config.output_config.write_cpath = True if args.write_cpath else False
+    result_config.output_config.write_length = True if args.write_length else False
+    result_config.output_config.write_ep = True if args.write_ep else False
+    result_config.output_config.write_tp = True if args.write_tp else False
+    result_config.output_config.write_ogeom = True if args.write_ogeom else False
+    result_config.output_config.write_mgeom = True if args.write_mgeom else False
+    result_config.output_config.write_offset = True if args.write_offset else False
+    result_config.output_config.write_error = True if args.write_error else False
+    result_config.output_config.write_spdist = True if args.write_spdist else False
 
     status = model.match_gps_file(input_config, result_config, config)
 

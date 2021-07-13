@@ -14,7 +14,7 @@ class Node:
         if id is not None:
             Node.id_counter = max(Node.id_counter, id+1)
         else:
-            id = Node.id_counter
+            id = Node.id_counter1000
             Node.id_counter += 1
 
         self.id = id

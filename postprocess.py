@@ -5,7 +5,7 @@ from rtree import index
 import numpy as np
 from haversine import haversine, Unit
 
-MAX_DIST = 20
+MAX_DIST = 30
 MIN_LENGTH = 20
 MAX_ANGLE = 10
 METERS_PER_DEGREE_LATITUDE = 111070.34306591158
@@ -94,20 +94,31 @@ def dist_intersect(A, B, C, D):
     l1 = line(A, B)
     l2 = line(C, D)
     intr_point = intersection(l1, l2)
-    min_dist = MAX_DIST
+    mainmin_dist = MAX_DIST
+    targetmin_dist = MAX_DIST
     if not intr_point:
         print('There is no intersection!')
-        return None, None, min_dist
-    nearest_point = None
-    lay_in = (min(C.longitude, D.longitude) < intr_point[0] < max(C.longitude, D.longitude)) and \
-             (min(C.latitude, D.latitude) < intr_point[1] < max(C.latitude, D.latitude))
-    if lay_in:
-        for node_idx, node in enumerate([A, B]):
-            diff_dist = haversine((node.latitude, node.longitude), intr_point[::-1], unit=Unit.METERS)
-            if diff_dist < min_dist:
-                nearest_point = node
-                min_dist = diff_dist
-    return intr_point, nearest_point, min_dist
+        return None, None, mainmin_dist
+    main_nearest = None
+    target_nearest = None
+    for node_idx, node in enumerate([A, B]):
+        main_dist = haversine((node.latitude, node.longitude), intr_point[::-1], unit=Unit.METERS)
+        if main_dist < mainmin_dist:
+            main_nearest = node
+            mainmin_dist = main_dist
+    for node_idx, node in enumerate([C, D]):
+        target_dist = haversine((node.latitude, node.longitude), intr_point[::-1], unit=Unit.METERS)
+        if target_dist < targetmin_dist:
+            target_nearest = node
+            targetmin_dist = target_dist
+    if target_nearest and main_nearest:
+        return intr_point, main_nearest, mainmin_dist
+    elif main_nearest:
+        lay_in = (min(C.longitude, D.longitude) < intr_point[0] < max(C.longitude, D.longitude)) and \
+                (min(C.latitude, D.latitude) < intr_point[1] < max(C.latitude, D.latitude))
+        if lay_in:
+            return intr_point, main_nearest, mainmin_dist
+    return intr_point, None, mainmin_dist
 
 
 def postprocess(map_dbpath, method='generate_nodes'):

@@ -4,13 +4,11 @@ from shapely.geometry import LineString
 import geopandas as gp
 from tqdm import tqdm
 import glob
-import hashlib
 import sqlite3
 import datetime
 from itertools import tee
 import numpy as np
-import os, csv, sys
-# from sklearn.metrics.pairwise import haversine_distances
+import os, csv
 from haversine import haversine, Unit
 
 # METERS_PER_DEGREE_LATITUDE = 111070.34306591158
@@ -266,6 +264,7 @@ def make_trajs(file_path):
                     altitudes = []
     return trajectories
 
+
 def csv2trajs(dir_path):
     all_files = sorted(glob.glob(os.path.join(dir_path, "*.csv")))
     each_file_df = (pd.read_csv(f) for f in all_files)
@@ -361,12 +360,11 @@ def edgeToShape(map_dbpath, dist_path, min_length=20, n=5, no_postprocess=True):
     edges.to_file(dist_path, driver='ESRI Shapefile')
 
 
-def read_large_size(dir_path, boundary, has_distance=True):
+def read_large_size(file_paths, boundary, has_distance=True):
     all_df = []
-    for file_name in sorted(os.listdir(dir_path)):
-        if not file_name.endswith('.parquet'):
+    for file_path in sorted(file_paths):
+        if not file_path.endswith('.parquet'):
             continue
-        file_path = os.path.join(dir_path, file_name)
         print(file_path)
         inbound_df = pd.read_parquet(file_path)
         inbound_df.location = inbound_df.location.apply(lambda x: convert_location(x))
@@ -411,6 +409,37 @@ def read_small_size(dir_path, boundary, has_distance=True):
     return all_df
 
 
+def save2outformat(input_df, out_format, out_dir, sp_thresh=None):
+    idxs = input_df.route_id.unique()
+    trajs_list = []
+    list2str = lambda x: ','.join([str(y) for y in x])
+    if out_format == 'csv':
+        split_parts = int(len(input_df) / min(sp_thresh, len(input_df)))
+        splitted_idxs = np.array_split(idxs, split_parts)
+        for arr in splitted_idxs:
+            file_name = os.path.join(out_dir, f'{arr[0]}-{arr[-1]}.csv')
+            input_df[input_df.route_id.isin(arr)].to_csv(file_name, sep=',', header=True, index=False)
+        for idx in idxs:
+            idx_df = input_df[input_df.route_id == idx]
+            traj_list = list(zip(idx_df.longitude.values, idx_df.latitude.values))
+            trajs_list.append(
+                (idx, LineString(traj_list), list2str(idx_df.altitude.tolist()),
+                 list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
+            )
+    elif out_format == 'txt':
+        for idx in idxs:
+            idx_df = input_df[input_df.route_id == idx]
+            idx_df.to_csv(f'trip_{idx}.txt', sep=' ', header=False, index=False)
+            traj_list = list(zip(idx_df.longitude.values, idx_df.latitude.values))
+            trajs_list.append(
+                (idx, LineString(traj_list), list2str(idx_df.altitude.tolist()),
+                 list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
+            )
+    df = pd.DataFrame(trajs_list, columns=['id', 'geometry', 'altitude', 'bearing', 'speed'])
+    df = gp.GeoDataFrame(df, geometry='geometry')
+    return df
+
+
 def load_directory(
         dir_path, boundary,
         output_dir, shape_path,
@@ -420,101 +449,109 @@ def load_directory(
         max_time_threshold=20,
         max_spd_threshold=26,
         split_threshold=100000,
-        large_size=False
+        large_size=True,
+        files_atonce=50,
+        output_format='csv'
 ):
-    if large_size:
-        print('loading from large size method')
-        all_df = read_large_size(dir_path, boundary, has_distance)
-    else:
-        print('loading from small size method')
-        all_df = read_small_size(dir_path, boundary, has_distance)
-    all_df.timestamp = all_df.timestamp.apply(
-        lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
-    )
-    all_df.sort_values(by=['route_slug', 'timestamp'], inplace=True)
-    all_df.reset_index(drop=True, inplace=True)
-    all_df['ntraj_points'] = 0
-    all_df['route_id'] = 0
-    all_df['pr_time'] = all_df.timestamp.shift(1)
-    all_df = all_df[1:]
-    all_df['delta_time'] = all_df[['timestamp', 'pr_time']].apply(
-        lambda x: (x.timestamp - x.pr_time).seconds, axis=1
-    )
-    if has_distance:
-        all_df['pr_distance'] = all_df.distance.shift(1)
-        all_df = all_df[1:]
-        all_df['delta_dist'] = all_df[['distance', 'pr_distance']].apply(
-            lambda x: x.distance - x.pr_distance, axis=1
-        )
-    else:
-        all_df['pr_latitude'] = all_df.latitude.shift(1)
-        all_df['pr_longitude'] = all_df.longitude.shift(1)
-        all_df = all_df[1:]
-        all_df['delta_dist'] = all_df[
-            ['latitude', 'longitude', 'pr_latitude', 'pr_longitude']
-        ].apply(
-            lambda x: haversine(
-                (x.latitude, x.longitude),
-                (x.pr_latitude, x.pr_longitude),
-                unit=Unit.METERS
-            ), axis=1
-        )
-    all_df['avg_speed'] = all_df[['delta_dist', 'delta_time']].apply(
-        lambda x: x.delta_dist / max(x.delta_time, 1), axis=1
-    )
-    print(len(all_df))
-
-    all_df = all_df[all_df.delta_dist > min_dist_threshold]
+    file_paths = [os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path)]
+    total_files = len(file_paths)
+    read_files = 0
     last_route_id = 0
-    first, last = 0, 0
-    for i in range(1, len(all_df)):
-
-        previous = all_df.iloc[i - 1]
-        current = all_df.iloc[i]
-
-        if any([
-            current['route_slug'] != previous['route_slug'],
-            current['delta_time'] > max_time_threshold,
-            current['avg_speed'] > max_spd_threshold,
-            current['delta_dist'] > max_dist_threshold
-        ]):
-            last = i
-            all_df.iloc[first:last]['ntraj_points'] = last - first
-            all_df.iloc[first:last]['route_id'] = last_route_id
-            last_route_id += 1
-            first = i
-    all_df = all_df[all_df.ntraj_points > 1]
-    print(len(all_df))
-    all_df = all_df[
-        [
-            'route_id',
-            'longitude',
-            'latitude',
-            'altitude',
-            'timestamp',
-            'bearing',
-            'speed'
-        ]
-    ]
-    idxs = all_df.route_id.unique()
-    split_parts = int(len(all_df) / min(split_threshold, len(all_df)))
-    splitted_idxs = np.array_split(idxs, split_parts)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    for arr in splitted_idxs:
-        file_name = os.path.join(output_dir, f'{arr[0]}-{arr[-1]}.csv')
-        all_df[all_df.route_id.isin(arr)].to_csv(file_name, sep=',', header=True, index=False)
-
-    trajs_list = []
-    list2str = lambda x: ','.join([str(y) for y in x])
-    for idx in idxs:
-        idx_df = all_df[all_df.route_id == idx]
-        traj_list = list(zip(idx_df.longitude.values, idx_df.latitude.values))
-        trajs_list.append(
-            (idx, LineString(traj_list), list2str(idx_df.altitude.tolist()),
-             list2str(idx_df.bearing.tolist()), list2str(idx_df.speed.tolist()))
+    while read_files < total_files:
+        if large_size:
+            print('loading from large size method')
+            all_df = read_large_size(file_paths[read_files:min(read_files + files_atonce, total_files)], boundary,
+                                     has_distance)
+        else:
+            print('loading from small size method')
+            all_df = read_small_size(dir_path, boundary, has_distance)
+        all_df.timestamp = all_df.timestamp.apply(
+            lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
         )
-    df = pd.DataFrame(trajs_list, columns=['id', 'geometry', 'altitude', 'bearing', 'speed'])
-    df = gp.GeoDataFrame(df, geometry='geometry')
-    df.to_file(shape_path, driver='ESRI Shapefile')
+
+        all_df['pre_route_slug'] = all_df.shift(1).route_slug
+        changed_idxs = list(all_df[all_df.pre_route_slug != all_df.route_slug].index)
+        changed_idxs.append(all_df.shape[0])
+        changed_idxs = np.array(list(pairwise(changed_idxs)))
+        repetitions = changed_idxs[:, 1] - changed_idxs[:, 0]
+        all_df['unique_route_slug'] = np.hstack([[i] * repetitions[i] for i in range(repetitions.shape[0])])
+        all_df.sort_values(by=['unique_route_slug', 'timestamp'], inplace=True)
+
+        # all_df.sort_values(by=['route_slug', 'timestamp'], inplace=True)
+        all_df.reset_index(drop=True, inplace=True)
+        all_df['ntraj_points'] = 0
+        all_df['route_id'] = 0
+        all_df['pr_time'] = all_df.timestamp.shift(1)
+        all_df = all_df[1:]
+        all_df['delta_time'] = all_df[['timestamp', 'pr_time']].apply(
+            lambda x: (x.timestamp - x.pr_time).seconds, axis=1
+        )
+        if has_distance:
+            all_df['pr_distance'] = all_df.distance.shift(1)
+            all_df = all_df[1:]
+            all_df['delta_dist'] = all_df['distance'] - all_df['pr_distance']
+        else:
+            all_df['pr_latitude'] = all_df.latitude.shift(1)
+            all_df['pr_longitude'] = all_df.longitude.shift(1)
+            all_df = all_df[1:]
+            all_df['delta_dist'] = all_df[
+                ['latitude', 'longitude', 'pr_latitude', 'pr_longitude']
+            ].apply(
+                lambda x: haversine(
+                    (x.latitude, x.longitude),
+                    (x.pr_latitude, x.pr_longitude),
+                    unit=Unit.METERS
+                ), axis=1
+            )
+
+        all_df['avg_speed'] = all_df[['delta_dist', 'delta_time']].apply(
+            lambda x: x.delta_dist / max(x.delta_time, 1), axis=1
+        )
+        print('Total number of records before preprocessing: ', len(all_df))
+
+        all_df = all_df[all_df.delta_dist > min_dist_threshold]
+        first, last = 0, 0
+        for i in range(1, len(all_df)):
+
+            previous = all_df.iloc[i - 1]
+            current = all_df.iloc[i]
+
+            if any([
+                current['route_slug'] != previous['route_slug'],
+                current['delta_time'] > max_time_threshold,
+                current['avg_speed'] > max_spd_threshold,
+                current['delta_dist'] > max_dist_threshold
+            ]):
+                last = i
+                all_df.iloc[first:last]['ntraj_points'] = last - first
+                all_df.iloc[first:last]['route_id'] = last_route_id
+                last_route_id += 1
+                first = i
+        all_df = all_df[all_df.ntraj_points > 1]
+        print('Total number of records after preprocessing: ', len(all_df))
+        all_df = all_df[
+            [
+                'route_id',
+                'longitude',
+                'latitude',
+                'altitude',
+                'timestamp',
+                'bearing',
+                'speed'
+            ]
+        ]
+        shapedf = save2outformat(
+            input_df=all_df,
+            out_format=output_format,
+            out_dir=output_dir,
+            sp_thresh=split_threshold
+        )
+        shape_path = shape_path.split('/')
+        shape_path = '/'.join(shape_path[:-1]) + \
+                     f'/files-{read_files}-{min(read_files + files_atonce, total_files)}-/' + \
+                     shape_path[-1]
+        shapedf.to_file(shape_path, driver='ESRI Shapefile')
+        read_files += files_atonce
+        if not large_size:
+            break
     return all_df

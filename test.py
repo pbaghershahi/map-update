@@ -1,109 +1,132 @@
-from evaluation_utils import traj_partition
 import pandas as pd
-import geopandas as gp
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sn
-import datetime
 from shapely import wkb
-import osmnx as ox
-from haversine import haversine, Unit
+from shapely.geometry import LineString
+import geopandas as gp
+from tqdm import tqdm
 import glob
-import os
-import subprocess
+import hashlib
+import sqlite3
+import datetime
+from itertools import tee
+import numpy as np
+import os, csv, sys
+# from sklearn.metrics.pairwise import haversine_distances
+from haversine import haversine, Unit
+
+# METERS_PER_DEGREE_LATITUDE = 111070.34306591158
+# METERS_PER_DEGREE_LONGITUDE = 83044.98918812413
+EARTH_RADIUS = 6371000 # meters
 
 
-def execute(cmd):
-    process = subprocess.Popen(
-        cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    (result, error) = process.communicate()
-    rc = process.wait()
-    if rc != 0:
-        print("Error: failed to execute command: ", cmd)
-        print(error.rstrip().decode("utf-8"))
-    return result.rstrip().decode("utf-8"), error.rstrip().decode("utf-8")
+def pairwise(iterable):
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
+def insert_nodes(node1, node2, n):
+    latitudes = np.linspace(node1[0], node2[0], n)
+    longitudes = np.linspace(node1[1], node2[1], n)
+    nodes = list(zip(longitudes, latitudes))
+    return nodes
 
-def partition_area(boundary, n_vertical, n_horizontal):
-    vert_ends = np.linspace(boundary['south'], boundary['north'], n_vertical+1)
-    horz_ends = np.linspace(boundary['west'], boundary['east'], n_horizontal+1)
-    vert_bounds = list(zip(vert_ends[:-1], vert_ends[1:]))
-    horz_bounds = list(zip(horz_ends[:-1], horz_ends[1:]))
-    return vert_bounds, horz_bounds
+def convert_location(x):
+    point = wkb.loads(x, hex=True)
+    return point.x, point.y
 
-n_vertical = 2
-n_horizontal = 4
-with open('./utils/bounding_box.txt', 'r') as bbx_file:
-    north, south, east, west = [float(line.strip('\n').split('=')[1]) for line in bbx_file]
-
-boundary = dict(
-    east=east,
-    west=west,
-    north=north,
-    south=south
-)
-vert_bounds, horz_bounds = partition_area(boundary, n_vertical, n_horizontal)
-
-results, errors = execute('python ground-map/ground_map.py --bounding_box_path ./utils/bounding_box.txt --ground_map_path ./ground-map/map/all_edges.shp --filtered_map_path ./ground-map/map/filtered_edges.shp --dropped_map_path ./ground-map/map/dropped_edges.shp')
-results, errors = execute('python matching/match.py --ground_map_path ./ground-map/map/all_edges.shp --trajs_path ./data/trajectories/trajs.shp --output_file_path ./data/trajs_mr.csv --write_opath True --radius 100 --gps_error 40')
-for vert_bound in vert_bounds:
-    for horz_bound in horz_bounds:
-        boundary = dict(
-            east=horz_bound[1], west=horz_bound[0], north=vert_bound[1], south=vert_bound[0]
+def edgeToShape(map_dbpath, dist_path, min_length=20, n=5, without_postprocess=True):
+    con = sqlite3.connect(map_dbpath)
+    edges_df = pd.read_sql_query("SELECT id, in_node, out_node, weight FROM edges", con)
+    nodes_df = pd.read_sql_query("SELECT id, latitude, longitude, weight FROM nodes", con)
+    nodes_df.set_index('id', drop=True, inplace=True)
+    # find the start and end nodes coordinates for each edge of the edges table
+    # based on nodes of the nodes table
+    # filter edges by minimum length
+    if without_postprocess:
+        edges_df['way_length'] = edges_df.apply(
+            lambda row: haversine(
+                (nodes_df.loc[row.in_node].latitude, nodes_df.loc[row.in_node].longitude),
+                (nodes_df.loc[row.out_node].latitude, nodes_df.loc[row.out_node].longitude),
+                unit=Unit.METERS
+            ),
+            axis=1)
+        edges_df = edges_df[edges_df.way_length > min_length]
+        edges_df['in_out'] = edges_df[['in_node', 'out_node']].apply(
+            lambda x: tuple(y for y in x), axis=1
         )
-        output_dir = f'{str(boundary["west"]).index(".")}{str(boundary["west"]).replace(".", "")}-' + \
-             f'{str(boundary["west"]).index(".")}{str(boundary["east"]).replace(".", "")}-' + \
-             f'{str(boundary["west"]).index(".")}{str(boundary["south"]).replace(".", "")}-' + \
-             f'{str(boundary["west"]).index(".")}{str(boundary["north"]).replace(".", "")}'
-        print(f'boundary {output_dir} started.')
-        bb_path = f'bb_{output_dir}.txt'
-        with open(f'./utils/{bb_path}', 'w') as bound_file:
-            txt2write = f'NORTH_LATITUDE={boundary["north"]}\n'+\
-            f'SOUTH_LATITUDE={boundary["south"]}\n'+\
-            f'EAST_LONGITUDE={boundary["east"]}\n'+\
-            f'WEST_LONGITUDE={boundary["west"]}'
-            bound_file.write(txt2write)
-        split_threshold = 50000
-        trajs_dirpath = './data/gps-csv/sample-area/'
-        csv_dirpath = './data/gps-csv/'
-        _ = traj_partition(trajs_dirpath, boundary, csv_dirpath, split_threshold)
-        groundmap_dir = os.path.join('./ground-map/map/', output_dir)
-        csv_dirpath = os.path.join(csv_dirpath, output_dir)
-        results_path = os.path.join('./results/kde/', output_dir)
-        inference_path = os.path.join('./data/', output_dir)
-        match_path = os.path.join('./data/', output_dir)
-        results, errors = execute(f'python ground-map/ground_map.py --bounding_box_path ./utils/{bb_path} --ground_map_path {groundmap_dir}/all_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp')
-        print('*'*50)
-        results, errors = execute(f'python kde/kde.py --trajs_path {csv_dirpath} --kde_output_path {results_path}/kde.png --raw_output_path {results_path}/raw_data.png --bounding_box_path ./utils/{bb_path}')
-        print('*' * 50)
-        results, errors = execute(f'python kde/skeleton.py --input_image_file {results_path}/kde.png --output_image_file {results_path}/skeleton.png --output_skeleton_dir {results_path}/skeleton-images/ --closing_radius 6')
-        print('*' * 50)
-        results, errors = execute(f'python kde/graph_extract.py --skeleton_image_path {results_path}/skeleton.png --bounding_box_path ./utils/{bb_path} --output_file_path {results_path}/skeleton-maps/skeleton_map_1m.db')
-        print('*' * 50)
-        results, errors = execute(f'python edge_traj.py --map_dbpath {results_path}/skeleton-maps/skeleton_map_1m.db --shape_output_path {inference_path}/edges.shp --n_edge_splits 9 --min_length 20')
-        print('*' * 50)
-        results, errors = execute(f'python matching/match.py --ground_map_path {groundmap_dir}/filtered_edges.shp --trajs_path {inference_path}/edges.shp --add_score True --save_unmatched True --write_opath True --output_file_path {match_path}/mr.csv --radius 20 --gps_error 20 --n_edge_split 9 --overlap_portion 0.5')
-        print('*' * 50)
-        results, errors = execute(f'python matching/match.py --ground_map_path {groundmap_dir}/dropped_edges.shp --trajs_path {match_path}/unmatched.shp --add_score True --output_file_path {match_path}/unmatched_mr.csv --write_opath True --radius 60 --gps_error 40 --n_edge_split 9 --overlap_portion 0.33')
-        print('*' * 50)
-        results, errors = execute(f'python evaluation.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --results_save_path {results_path}/evaluation_results.txt')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_with_cs_dropped.png --apply_cos_sim True --background_map dropped')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_with_cs_filtered.png --apply_cos_sim True --background_map filtered')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/False_with_cs_dropped.png --apply_cos_sim True --false_edges True --background_map dropped')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/False_with_cs_filtered.png --apply_cos_sim True --false_edges True --background_map filtered')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/unmatched_mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/True_without_cs_dropped.png --background_map dropped')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/unmatched_dropped.png --plot_matches True --background_map dropped')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/unmatched_filtered.png --plot_matches True --background_map filtered')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/matched_dropped.png --background_map dropped')
-        print('*' * 50)
-        results, errors = execute(f'python plot.py --match_path {match_path}/mr.csv --trajs_match ./data/trajs_mr.csv --inferred_edges_path {inference_path}/edges.shp --dropped_map_path {groundmap_dir}/dropped_edges.shp --filtered_map_path {groundmap_dir}/filtered_edges.shp --figure_save_path {results_path}/all_filtered.png --plot_all_edges True --background_map filtered')
-        print('*'*50)
+        unique_indices = []
+        for index, row in edges_df.iterrows():
+            if row.in_out[::-1] not in unique_indices:
+                unique_indices.append(row.in_out)
+        edges_df = edges_df[edges_df.in_out.isin(unique_indices)]
+        edges_df.reset_index(drop=True, inplace=True)
+    edges = pd.DataFrame({'id': edges_df.index + 1})
+    edges['geometry'] = edges_df.apply(
+        lambda row: LineString(
+            insert_nodes(
+                [nodes_df.loc[row.in_node].latitude, nodes_df.loc[row.in_node].longitude],
+                [nodes_df.loc[row.out_node].latitude, nodes_df.loc[row.out_node].longitude],
+                n
+            )
+        ),
+    axis=1)
+    edges = gp.GeoDataFrame(edges, geometry='geometry')
+    edges.to_file(dist_path, driver='ESRI Shapefile')
+
+# f'python edge_traj.py --map_dbpath {results_path}/skeleton-maps/skeleton_map_1m.db --shape_output_path {inference_path}/edges.shp --n_edge_splits 9 --min_length {min_length}')
+edgeToShape('./skeleton_map_2m.db', './test/before_edges.shp', 20, 9)
+print('*'*60)
+edgeToShape('./skeleton_map_3m.db', './test/after_edges.shp', 20, 9)
+
+before_edges = gp.read_file('./test/before_edges.shp')
+after_edges = gp.read_file('./test/after_edges.shp')
+filtered_map = gp.read_file('./ground-map/map/dropped_edges.shp')
+# filtered_map = gp.read_file('./ground-map/map/all_edges.shp')
+# filtered_map = gp.read_file('./ground-map/map/filtered_edges.shp')
+
+import matplotlib.pyplot as plt
+
+# before_edges.plot()
+# plt.title('before')
+# after_edges.plot()
+# plt.title('after')
+
+
+filtered_map.plot()
+# plt.title('CG')
+counter = 0
+for index, row in before_edges.iterrows():
+    coords = list(row.geometry.coords)
+    if counter == len(before_edges) - 1:
+        plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r', label='detected edges')
+    else:
+        plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r')
+    counter += 1
+plt.title('before')
+
+
+# a = [12, 58, 66, 68, 90, 94, 132, 138, 142, 166, 168, 176, 200, 206, 220, 224, 226, 242, 256, 262, 272, 280, 298, 304, 312, 352, 356, 384, 392, 412, 448, 460, 474, 486, 488, 516, 518, 524]
+a = [142]
+filtered_map.plot()
+counter = 0
+for index, row in after_edges.iterrows():
+    # if row.pre_id in a:
+    #     coords = list(row.geometry.coords)
+    #     if counter == len(after_edges) - 1:
+    #         plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r', label='detected edges')
+    #     else:
+    #         plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r')
+    # else:
+    #     coords = list(row.geometry.coords)
+    #     if counter == len(after_edges) - 1:
+    #         plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='g', label='detected edges')
+    #     else:
+    #         plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='g')
+    coords = list(row.geometry.coords)
+    if counter == len(after_edges) - 1:
+        plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r', label='detected edges')
+    else:
+        plt.plot([coords[0][0], coords[-1][0]], [coords[0][1], coords[-1][1]], c='r')
+    counter += 1
+plt.title('after')
+
+plt.show()
