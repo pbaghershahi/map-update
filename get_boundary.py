@@ -78,7 +78,7 @@ def get_time_boundary(dir_path, out_bound_file):
 def test(dir_path, out_time_bound_file, out_loc_bound_file):
     north, south, east, west = 35.7384, 35.7185, 51.3822, 51.3200
     start = datetime.fromisoformat('2021-06-06 00:00:00')
-    end = datetime.fromisoformat('2021-06-07 23:59:59')
+    end = datetime.fromisoformat('2021-06-08 23:59:59')
     file_paths = sorted([os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path)])
     total_records = 0
     for file_path in tqdm(file_paths, total=len(file_paths)):

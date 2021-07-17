@@ -360,28 +360,36 @@ def edgeToShape(map_dbpath, dist_path, min_length=20, n=5, no_postprocess=True):
     edges.to_file(dist_path, driver='ESRI Shapefile')
 
 
-def read_large_size(file_paths, boundary, has_distance=True):
+def read_large_size(file_paths, boundary, start_time='', end_time='', has_distance=True):
     all_df = []
+    start = datetime.fromisoformat(start_time)
+    end = datetime.fromisoformat(end_time)
     for file_path in sorted(file_paths):
         if not file_path.endswith('.parquet'):
             continue
         print(file_path)
         inbound_df = pd.read_parquet(file_path)
+        inbound_df['iso_timestamp'] = inbound_df.timestamp.apply(
+            lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
+        )
+        if start_time and end_time:
+            inbound_df = inbound_df[inbound_df.iso_timestamp.between(start, end)]
         inbound_df.location = inbound_df.location.apply(lambda x: convert_location(x))
         inbound_df['longitude'] = inbound_df.location.apply(lambda x: x[0])
         inbound_df['latitude'] = inbound_df.location.apply(lambda x: x[1])
-        inbound_df['in_bound'] = inbound_df.location.apply(
-            lambda x: boundary['west'] < x[0] < boundary['east'] and boundary['south'] < x[1] < boundary['north']
-        )
-        inbound_df = inbound_df[inbound_df.in_bound == True]
+        inbound_df = inbound_df[
+            inbound_df.latitude.between(boundary['south'], boundary['north']) &
+            inbound_df.longitude.between(boundary['west'], boundary['east'])
+        ]
         if has_distance:
             inbound_df = inbound_df[
                 ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed',
-                 'distance']
+                 'distance', 'iso_timestamp']
             ]
         else:
             inbound_df = inbound_df[
-                ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed']
+                ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed',
+                 'iso_timestamp']
             ]
         all_df.append(inbound_df)
     all_df = pd.concat(all_df, ignore_index=True)
@@ -393,10 +401,10 @@ def read_small_size(dir_path, boundary, has_distance=True):
     all_df.location = all_df.location.apply(lambda x: convert_location(x))
     all_df['longitude'] = all_df.location.apply(lambda x: x[0])
     all_df['latitude'] = all_df.location.apply(lambda x: x[1])
-    all_df['in_bound'] = all_df.location.apply(
-        lambda x: boundary['west'] < x[0] < boundary['east'] and boundary['south'] < x[1] < boundary['north']
-    )
-    all_df = all_df[all_df.in_bound == True]
+    all_df = all_df[
+        all_df.latitude.between(boundary['south'], boundary['north']) &
+        all_df.longitude.between(boundary['west'], boundary['east'])
+    ]
     if has_distance:
         all_df = all_df[
             ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed',
@@ -451,7 +459,9 @@ def load_directory(
         split_threshold=100000,
         large_size=True,
         files_atonce=50,
-        output_format='csv'
+        output_format='csv',
+        start_time='',
+        end_time=''
 ):
     file_paths = [os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path)]
     total_files = len(file_paths)
@@ -461,13 +471,10 @@ def load_directory(
         if large_size:
             print('loading from large size method')
             all_df = read_large_size(file_paths[read_files:min(read_files + files_atonce, total_files)], boundary,
-                                     has_distance)
+                                     start_time, end_time, has_distance)
         else:
             print('loading from small size method')
             all_df = read_small_size(dir_path, boundary, has_distance)
-        all_df.timestamp = all_df.timestamp.apply(
-            lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
-        )
 
         all_df['pre_route_slug'] = all_df.shift(1).route_slug
         changed_idxs = list(all_df[all_df.pre_route_slug != all_df.route_slug].index)
@@ -475,16 +482,16 @@ def load_directory(
         changed_idxs = np.array(list(pairwise(changed_idxs)))
         repetitions = changed_idxs[:, 1] - changed_idxs[:, 0]
         all_df['unique_route_slug'] = np.hstack([[i] * repetitions[i] for i in range(repetitions.shape[0])])
-        all_df.sort_values(by=['unique_route_slug', 'timestamp'], inplace=True)
+        all_df.sort_values(by=['unique_route_slug', 'iso_timestamp'], inplace=True)
 
-        # all_df.sort_values(by=['route_slug', 'timestamp'], inplace=True)
+        # all_df.sort_values(by=['route_slug', 'iso_timestamp'], inplace=True)
         all_df.reset_index(drop=True, inplace=True)
         all_df['ntraj_points'] = 0
         all_df['route_id'] = 0
-        all_df['pr_time'] = all_df.timestamp.shift(1)
+        all_df['pr_time'] = all_df.iso_timestamp.shift(1)
         all_df = all_df[1:]
-        all_df['delta_time'] = all_df[['timestamp', 'pr_time']].apply(
-            lambda x: (x.timestamp - x.pr_time).seconds, axis=1
+        all_df['delta_time'] = all_df[['iso_timestamp', 'pr_time']].apply(
+            lambda x: (x.iso_timestamp - x.pr_time).seconds, axis=1
         )
         if has_distance:
             all_df['pr_distance'] = all_df.distance.shift(1)
@@ -548,7 +555,7 @@ def load_directory(
         )
         shape_path = shape_path.split('/')
         shape_path = '/'.join(shape_path[:-1]) + \
-                     f'/files-{read_files}-{min(read_files + files_atonce, total_files)}-/' + \
+                     f'/files-{read_files}-{min(read_files + files_atonce, total_files)}-' + \
                      shape_path[-1]
         shapedf.to_file(shape_path, driver='ESRI Shapefile')
         read_files += files_atonce

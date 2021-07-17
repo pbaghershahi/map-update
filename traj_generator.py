@@ -39,7 +39,9 @@ if __name__ == '__main__':
             output_dir=args.csv_output_directory,
             shape_path=args.shape_output_directory,
             has_distance=has_distance,
-            large_size=large_size_files
+            large_size=large_size_files,
+            start_time='2021-06-06 00:00:00',
+            end_time='2021-06-09 23:59:59'
         )
     else:
         csvfiles_dir = load_data(args.data_directory, boundary, args.csv_output_directory)
