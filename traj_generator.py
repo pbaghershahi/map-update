@@ -1,4 +1,4 @@
-from filtering import load_data, trajToShape, load_directory
+from filtering import load_data, trajToShape, load_directory, datsetToUTM
 import argparse
 import os
 
@@ -13,6 +13,8 @@ if __name__ == '__main__':
                         help='if parquet files are large size. (default: False)')
     parser.add_argument('--has_distance', type=bool, default=False,
                         help='if parquet files has column. (default: False)')
+    parser.add_argument('-utm', '--convert-to-utm', action='store_true', default=False)
+    parser.add_argument('--utm-out-dir', type=str, help='path to save output csv files in utm coordinates')
     args = parser.parse_args()
 
     with open(args.bounding_box_path, 'r') as bbx_file:
@@ -50,3 +52,6 @@ if __name__ == '__main__':
             os.makedirs(traj_directory)
         trajToShape(csvfiles_dir, args.shape_output_directory)
         # trajToShape('./data/gps-csv/sample-area/', args.shape_output_directory)
+
+    if args.convert_to_utm:
+        datsetToUTM(args.csv_output_directory, args.utm_out_dir)

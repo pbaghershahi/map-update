@@ -562,3 +562,21 @@ def load_directory(
         if not large_size:
             break
     return all_df
+
+
+def datsetToUTM(dirpath, out_dir):
+    from pyproj import Proj
+    wgs2utm = Proj(proj='utm', zone=39, ellps='WGS84', preserve_units=False)
+    os.makedirs(out_dir, exist_ok=True)
+    all_files = os.listdir(dirpath)
+    for file_name in all_files:
+        temp_df = pd.read_csv(os.path.join(dirpath, file_name), sep=',')
+        temp_df = temp_df[temp_df.altitude.notna()]
+        temp_df['coords'] = temp_df[['longitude', 'latitude']].apply(
+            lambda x: wgs2utm(x.longitude, x.latitude), axis=1
+        )
+        temp_df[['longitude', 'latitude']] = pd.DataFrame(
+            temp_df['coords'].tolist(), index=temp_df.index
+        )
+        temp_df = temp_df[['route_id', 'longitude', 'latitude', 'altitude', 'timestamp']]
+        temp_df.to_csv(os.path.join(out_dir, file_name), sep=',', header=True, index=False)

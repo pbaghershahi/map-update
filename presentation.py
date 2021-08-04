@@ -32,10 +32,10 @@ def partition_area(boundary, n_vertical, n_horizontal):
     horz_bounds = list(zip(horz_ends[:-1], horz_ends[1:]))
     return vert_bounds, horz_bounds
 
-n_vertical = 3
-n_horizontal = 3
+n_vertical = 2
+n_horizontal = 4
 min_length = 20
-min_crossing = 1
+min_crossing = 5
 cut_thresh = 25
 with open('./utils/bounding_box.txt', 'r') as bbx_file:
     north, south, east, west = [float(line.strip('\n').split('=')[1]) for line in bbx_file]
