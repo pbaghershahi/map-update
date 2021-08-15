@@ -5,7 +5,7 @@ import geopandas as gp
 from tqdm import tqdm
 import glob
 import sqlite3
-import datetime
+from datetime import datetime
 from itertools import tee
 import numpy as np
 import os, csv
@@ -83,7 +83,7 @@ def dist_preprocess(trip, max_dist_threshold=170, min_dist_threshold=2):
     return filtered_trip
 
 
-def spd_preprocess(trip, max_spd_threshold=26, min_spd_threshold=2):
+def spd_preprocess(trip, max_spd_threshold=25, min_spd_threshold=2):
     #note: this function just filter data based on avergae speed between two points, not based on the point gps point speed
     filtered_trip = []
     counter = 0
@@ -123,7 +123,7 @@ def modify_data(file_path, boundary, global_index, **kwargs):
     # data.reset_index(drop=True, inplace=True)
 
     data.timestamp = data.timestamp.apply(
-        lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
+        lambda x: datetime.fromtimestamp(int(x) / 1000)
     )
     data.location = data.location.apply(
         lambda x: convert_location(x)
@@ -369,11 +369,13 @@ def read_large_size(file_paths, boundary, start_time='', end_time='', has_distan
             continue
         print(file_path)
         inbound_df = pd.read_parquet(file_path)
+        # print('shape inbound df after read: ', inbound_df.shape)
         inbound_df['iso_timestamp'] = inbound_df.timestamp.apply(
-            lambda x: datetime.datetime.fromtimestamp(int(x) / 1000)
+            lambda x: datetime.fromtimestamp(int(x) / 1000)
         )
         if start_time and end_time:
             inbound_df = inbound_df[inbound_df.iso_timestamp.between(start, end)]
+        # print('shape inbound df after time filtering: ', inbound_df.shape)
         inbound_df.location = inbound_df.location.apply(lambda x: convert_location(x))
         inbound_df['longitude'] = inbound_df.location.apply(lambda x: x[0])
         inbound_df['latitude'] = inbound_df.location.apply(lambda x: x[1])
@@ -381,6 +383,7 @@ def read_large_size(file_paths, boundary, start_time='', end_time='', has_distan
             inbound_df.latitude.between(boundary['south'], boundary['north']) &
             inbound_df.longitude.between(boundary['west'], boundary['east'])
         ]
+        # print('shape inbound df after location filtering: ', inbound_df.shape)
         if has_distance:
             inbound_df = inbound_df[
                 ['device_id', 'route_slug', 'latitude', 'longitude', 'altitude', 'timestamp', 'bearing', 'speed',
@@ -453,15 +456,16 @@ def load_directory(
         output_dir, shape_path,
         has_distance=True,
         min_dist_threshold=5,
-        max_dist_threshold=170,
-        max_time_threshold=20,
-        max_spd_threshold=26,
+        max_dist_threshold=100,
+        max_time_threshold=10,
+        max_spd_threshold=25,
         split_threshold=100000,
         large_size=True,
         files_atonce=50,
         output_format='csv',
         start_time='',
-        end_time=''
+        end_time='',
+        reorder=False
 ):
     file_paths = [os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path)]
     total_files = len(file_paths)
@@ -475,16 +479,19 @@ def load_directory(
         else:
             print('loading from small size method')
             all_df = read_small_size(dir_path, boundary, has_distance)
+        print('***** Shape of records df before preprocessing: ', all_df.shape, '*****')
 
-        all_df['pre_route_slug'] = all_df.shift(1).route_slug
-        changed_idxs = list(all_df[all_df.pre_route_slug != all_df.route_slug].index)
-        changed_idxs.append(all_df.shape[0])
-        changed_idxs = np.array(list(pairwise(changed_idxs)))
-        repetitions = changed_idxs[:, 1] - changed_idxs[:, 0]
-        all_df['unique_route_slug'] = np.hstack([[i] * repetitions[i] for i in range(repetitions.shape[0])])
-        all_df.sort_values(by=['unique_route_slug', 'iso_timestamp'], inplace=True)
+        if reorder:
+            all_df['pre_route_slug'] = all_df.shift(1).route_slug
+            changed_idxs = list(all_df[all_df.pre_route_slug != all_df.route_slug].index)
+            changed_idxs.append(all_df.shape[0])
+            changed_idxs = np.array(list(pairwise(changed_idxs)))
+            repetitions = changed_idxs[:, 1] - changed_idxs[:, 0]
+            all_df['unique_route_slug'] = np.hstack([[i] * repetitions[i] for i in range(repetitions.shape[0])])
+            all_df.sort_values(by=['unique_route_slug', 'iso_timestamp'], inplace=True)
+        else:
+            all_df.sort_values(by=['route_slug', 'iso_timestamp'], inplace=True)
 
-        # all_df.sort_values(by=['route_slug', 'iso_timestamp'], inplace=True)
         all_df.reset_index(drop=True, inplace=True)
         all_df['ntraj_points'] = 0
         all_df['route_id'] = 0
@@ -514,7 +521,6 @@ def load_directory(
         all_df['avg_speed'] = all_df[['delta_dist', 'delta_time']].apply(
             lambda x: x.delta_dist / max(x.delta_time, 1), axis=1
         )
-        print('Total number of records before preprocessing: ', len(all_df))
 
         all_df = all_df[all_df.delta_dist > min_dist_threshold]
         first, last = 0, 0
@@ -535,7 +541,7 @@ def load_directory(
                 last_route_id += 1
                 first = i
         all_df = all_df[all_df.ntraj_points > 1]
-        print('Total number of records after preprocessing: ', len(all_df))
+        print('***** Shape of records df after preprocessing: ', all_df.shape, '*****')
         all_df = all_df[
             [
                 'route_id',
@@ -553,11 +559,11 @@ def load_directory(
             out_dir=output_dir,
             sp_thresh=split_threshold
         )
-        shape_path = shape_path.split('/')
-        shape_path = '/'.join(shape_path[:-1]) + \
+        save_path = shape_path.split('/')
+        save_path = '/'.join(save_path[:-1]) + \
                      f'/files-{read_files}-{min(read_files + files_atonce, total_files)}-' + \
-                     shape_path[-1]
-        shapedf.to_file(shape_path, driver='ESRI Shapefile')
+                     save_path[-1]
+        shapedf.to_file(save_path, driver='ESRI Shapefile')
         read_files += files_atonce
         if not large_size:
             break
@@ -569,7 +575,7 @@ def datsetToUTM(dirpath, out_dir):
     wgs2utm = Proj(proj='utm', zone=39, ellps='WGS84', preserve_units=False)
     os.makedirs(out_dir, exist_ok=True)
     all_files = os.listdir(dirpath)
-    for file_name in all_files:
+    for file_name in tqdm(all_files, total=len(all_files)):
         temp_df = pd.read_csv(os.path.join(dirpath, file_name), sep=',')
         temp_df = temp_df[temp_df.altitude.notna()]
         temp_df['coords'] = temp_df[['longitude', 'latitude']].apply(

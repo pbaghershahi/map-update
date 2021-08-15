@@ -1,0 +1,293 @@
+G:\Learning\Python\PyCharm\pyenv\Scripts\python.exe G:/Learning/Python/PyCharm/gis/map_matching_score.py
+creating buffers of ground truth map...
+done.
+    creating buffers of Ahmed_2012 map...
+    done.
+    creating buffers of Biagioni_Eriksson_2012 map...
+    done.
+    creating buffers of Davies_2006 map...
+    done.
+    creating buffers of Karagiorgou_2012 map...
+    done.
+    creating buffers of ours map...
+    done.
+    creating buffers of ours_regular map...
+    done.
+dataset: athens, match_distance: 5.00, method: Ahmed_2012
+    F: 0.28821, P: 0.31737, R: 0.26396
+dataset: athens, match_distance: 5.00, method: Biagioni_Eriksson_2012
+    F: 0.27071, P: 0.39101, R: 0.20701
+dataset: athens, match_distance: 5.00, method: Davies_2006
+    F: 0.06696, P: 0.61876, R: 0.03540
+dataset: athens, match_distance: 5.00, method: Karagiorgou_2012
+    F: 0.31044, P: 0.35700, R: 0.27462
+dataset: athens, match_distance: 5.00, method: ours
+    F: 0.31115, P: 0.34446, R: 0.28372
+dataset: athens, match_distance: 5.00, method: ours_regular
+    F: 0.31800, P: 0.38710, R: 0.26984
+dataset: athens, match_distance: 10.00, method: Ahmed_2012
+    F: 0.52966, P: 0.57893, R: 0.48812
+dataset: athens, match_distance: 10.00, method: Biagioni_Eriksson_2012
+    F: 0.47032, P: 0.67151, R: 0.36189
+dataset: athens, match_distance: 10.00, method: Davies_2006
+    F: 0.10184, P: 0.92183, R: 0.05389
+dataset: athens, match_distance: 10.00, method: Karagiorgou_2012
+    F: 0.50664, P: 0.58318, R: 0.44786
+dataset: athens, match_distance: 10.00, method: ours
+    F: 0.52660, P: 0.57590, R: 0.48508
+dataset: athens, match_distance: 10.00, method: ours_regular
+    F: 0.51867, P: 0.62332, R: 0.44410
+dataset: athens, match_distance: 15.00, method: Ahmed_2012
+    F: 0.68165, P: 0.73947, R: 0.63222
+dataset: athens, match_distance: 15.00, method: Biagioni_Eriksson_2012
+    F: 0.58016, P: 0.81699, R: 0.44978
+dataset: athens, match_distance: 15.00, method: Davies_2006
+    F: 0.11356, P: 0.99739, R: 0.06021
+dataset: athens, match_distance: 15.00, method: Karagiorgou_2012
+    F: 0.63514, P: 0.73183, R: 0.56101
+dataset: athens, match_distance: 15.00, method: ours
+    F: 0.66463, P: 0.71883, R: 0.61803
+dataset: athens, match_distance: 15.00, method: ours_regular
+    F: 0.63920, P: 0.75541, R: 0.55398
+dataset: athens, match_distance: 20.00, method: Ahmed_2012
+    F: 0.77282, P: 0.83068, R: 0.72250
+dataset: athens, match_distance: 20.00, method: Biagioni_Eriksson_2012
+    F: 0.65064, P: 0.90533, R: 0.50778
+dataset: athens, match_distance: 20.00, method: Davies_2006
+    F: 0.11829, P: 1.00000, R: 0.06286
+dataset: athens, match_distance: 20.00, method: Karagiorgou_2012
+    F: 0.72349, P: 0.83329, R: 0.63925
+dataset: athens, match_distance: 20.00, method: ours
+    F: 0.74746, P: 0.80109, R: 0.70056
+dataset: athens, match_distance: 20.00, method: ours_regular
+    F: 0.71098, P: 0.83013, R: 0.62174
+dataset: athens, match_distance: 25.00, method: Ahmed_2012
+    F: 0.82877, P: 0.88222, R: 0.78142
+dataset: athens, match_distance: 25.00, method: Biagioni_Eriksson_2012
+    F: 0.70497, P: 0.96195, R: 0.55635
+dataset: athens, match_distance: 25.00, method: Davies_2006
+    F: 0.12439, P: 1.00000, R: 0.06632
+dataset: athens, match_distance: 25.00, method: Karagiorgou_2012
+    F: 0.77129, P: 0.88612, R: 0.68280
+dataset: athens, match_distance: 25.00, method: ours
+    F: 0.80501, P: 0.85557, R: 0.76010
+dataset: athens, match_distance: 25.00, method: ours_regular
+    F: 0.76325, P: 0.88246, R: 0.67241
+dataset: athens, match_distance: 30.00, method: Ahmed_2012
+    F: 0.86650, P: 0.91479, R: 0.82306
+dataset: athens, match_distance: 30.00, method: Biagioni_Eriksson_2012
+    F: 0.73136, P: 0.97964, R: 0.58348
+dataset: athens, match_distance: 30.00, method: Davies_2006
+    F: 0.13142, P: 1.00000, R: 0.07033
+dataset: athens, match_distance: 30.00, method: Karagiorgou_2012
+    F: 0.80199, P: 0.91835, R: 0.71179
+dataset: athens, match_distance: 30.00, method: ours
+    F: 0.84883, P: 0.89402, R: 0.80799
+dataset: athens, match_distance: 30.00, method: ours_regular
+    F: 0.79865, P: 0.90994, R: 0.71162
+dataset: athens, match_distance: 35.00, method: Ahmed_2012
+    F: 0.89509, P: 0.93654, R: 0.85714
+dataset: athens, match_distance: 35.00, method: Biagioni_Eriksson_2012
+    F: 0.75267, P: 0.98471, R: 0.60913
+dataset: athens, match_distance: 35.00, method: Davies_2006
+    F: 0.13681, P: 1.00000, R: 0.07343
+dataset: athens, match_distance: 35.00, method: Karagiorgou_2012
+    F: 0.82387, P: 0.93654, R: 0.73539
+dataset: athens, match_distance: 35.00, method: ours
+    F: 0.88291, P: 0.91964, R: 0.84900
+dataset: athens, match_distance: 35.00, method: ours_regular
+    F: 0.82684, P: 0.92995, R: 0.74432
+dataset: athens, match_distance: 40.00, method: Ahmed_2012
+    F: 0.91476, P: 0.94907, R: 0.88285
+dataset: athens, match_distance: 40.00, method: Biagioni_Eriksson_2012
+    F: 0.76877, P: 0.98917, R: 0.62869
+dataset: athens, match_distance: 40.00, method: Davies_2006
+    F: 0.14192, P: 1.00000, R: 0.07638
+dataset: athens, match_distance: 40.00, method: Karagiorgou_2012
+    F: 0.84202, P: 0.95118, R: 0.75534
+dataset: athens, match_distance: 40.00, method: ours
+    F: 0.90488, P: 0.93398, R: 0.87753
+dataset: athens, match_distance: 40.00, method: ours_regular
+    F: 0.84761, P: 0.94410, R: 0.76901
+dataset: athens, match_distance: 45.00, method: Ahmed_2012
+    F: 0.92849, P: 0.95601, R: 0.90250
+dataset: athens, match_distance: 45.00, method: Biagioni_Eriksson_2012
+    F: 0.78262, P: 0.99339, R: 0.64563
+dataset: athens, match_distance: 45.00, method: Davies_2006
+    F: 0.14754, P: 1.00000, R: 0.07965
+dataset: athens, match_distance: 45.00, method: Karagiorgou_2012
+    F: 0.85624, P: 0.96159, R: 0.77170
+dataset: athens, match_distance: 45.00, method: ours
+    F: 0.92324, P: 0.94511, R: 0.90235
+dataset: athens, match_distance: 45.00, method: ours_regular
+    F: 0.86788, P: 0.95564, R: 0.79489
+dataset: athens, match_distance: 50.00, method: Ahmed_2012
+    F: 0.93933, P: 0.96038, R: 0.91919
+dataset: athens, match_distance: 50.00, method: Biagioni_Eriksson_2012
+    F: 0.79487, P: 0.99633, R: 0.66118
+dataset: athens, match_distance: 50.00, method: Davies_2006
+    F: 0.15390, P: 1.00000, R: 0.08336
+dataset: athens, match_distance: 50.00, method: Karagiorgou_2012
+    F: 0.86739, P: 0.96913, R: 0.78498
+dataset: athens, match_distance: 50.00, method: ours
+    F: 0.93761, P: 0.95408, R: 0.92170
+dataset: athens, match_distance: 50.00, method: ours_regular
+    F: 0.87945, P: 0.95992, R: 0.81143
+creating buffers of ground truth map...
+done.
+    creating buffers of Ahmed_2012 map...
+    done.
+    creating buffers of Biagioni_Eriksson_2012 map...
+    done.
+    creating buffers of Davies_2006 map...
+    done.
+    creating buffers of Karagiorgou_2012 map...
+    done.
+    creating buffers of ours map...
+    done.
+    creating buffers of ours_regular map...
+    done.
+dataset: berlin, match_distance: 5.00, method: Ahmed_2012
+    F: 0.13697, P: 0.20108, R: 0.10386
+dataset: berlin, match_distance: 5.00, method: Biagioni_Eriksson_2012
+    F: 0.26374, P: 0.37744, R: 0.20269
+dataset: berlin, match_distance: 5.00, method: Davies_2006
+    F: 0.20362, P: 0.36470, R: 0.14124
+dataset: berlin, match_distance: 5.00, method: Karagiorgou_2012
+    F: 0.24781, P: 0.24514, R: 0.25054
+dataset: berlin, match_distance: 5.00, method: ours
+    F: 0.23165, P: 0.31512, R: 0.18314
+dataset: berlin, match_distance: 5.00, method: ours_regular
+    F: 0.23165, P: 0.31512, R: 0.18314
+dataset: berlin, match_distance: 10.00, method: Ahmed_2012
+    F: 0.25985, P: 0.36714, R: 0.20109
+dataset: berlin, match_distance: 10.00, method: Biagioni_Eriksson_2012
+    F: 0.46558, P: 0.63442, R: 0.36772
+dataset: berlin, match_distance: 10.00, method: Davies_2006
+    F: 0.35812, P: 0.60964, R: 0.25352
+dataset: berlin, match_distance: 10.00, method: Karagiorgou_2012
+    F: 0.43824, P: 0.43864, R: 0.43785
+dataset: berlin, match_distance: 10.00, method: ours
+    F: 0.42048, P: 0.54897, R: 0.34073
+dataset: berlin, match_distance: 10.00, method: ours_regular
+    F: 0.42048, P: 0.54897, R: 0.34073
+dataset: berlin, match_distance: 15.00, method: Ahmed_2012
+    F: 0.36332, P: 0.49374, R: 0.28741
+dataset: berlin, match_distance: 15.00, method: Biagioni_Eriksson_2012
+    F: 0.62185, P: 0.80902, R: 0.50501
+dataset: berlin, match_distance: 15.00, method: Davies_2006
+    F: 0.48716, P: 0.78112, R: 0.35395
+dataset: berlin, match_distance: 15.00, method: Karagiorgou_2012
+    F: 0.57902, P: 0.58013, R: 0.57792
+dataset: berlin, match_distance: 15.00, method: ours
+    F: 0.56975, P: 0.71184, R: 0.47495
+dataset: berlin, match_distance: 15.00, method: ours_regular
+    F: 0.56975, P: 0.71184, R: 0.47495
+dataset: berlin, match_distance: 20.00, method: Ahmed_2012
+    F: 0.45651, P: 0.59943, R: 0.36862
+dataset: berlin, match_distance: 20.00, method: Biagioni_Eriksson_2012
+    F: 0.72308, P: 0.90138, R: 0.60367
+dataset: berlin, match_distance: 20.00, method: Davies_2006
+    F: 0.58180, P: 0.88163, R: 0.43416
+dataset: berlin, match_distance: 20.00, method: Karagiorgou_2012
+    F: 0.67427, P: 0.67481, R: 0.67372
+dataset: berlin, match_distance: 20.00, method: ours
+    F: 0.67428, P: 0.81080, R: 0.57710
+dataset: berlin, match_distance: 20.00, method: ours_regular
+    F: 0.67428, P: 0.81080, R: 0.57710
+dataset: berlin, match_distance: 25.00, method: Ahmed_2012
+    F: 0.53054, P: 0.68062, R: 0.43469
+dataset: berlin, match_distance: 25.00, method: Biagioni_Eriksson_2012
+    F: 0.78389, P: 0.94405, R: 0.67019
+dataset: berlin, match_distance: 25.00, method: Davies_2006
+    F: 0.64314, P: 0.93412, R: 0.49039
+dataset: berlin, match_distance: 25.00, method: Karagiorgou_2012
+    F: 0.73799, P: 0.74604, R: 0.73012
+dataset: berlin, match_distance: 25.00, method: ours
+    F: 0.74162, P: 0.86811, R: 0.64730
+dataset: berlin, match_distance: 25.00, method: ours_regular
+    F: 0.74162, P: 0.86811, R: 0.64730
+dataset: berlin, match_distance: 30.00, method: Ahmed_2012
+    F: 0.59231, P: 0.74469, R: 0.49170
+dataset: berlin, match_distance: 30.00, method: Biagioni_Eriksson_2012
+    F: 0.81712, P: 0.96247, R: 0.70992
+dataset: berlin, match_distance: 30.00, method: Davies_2006
+    F: 0.68432, P: 0.96224, R: 0.53096
+dataset: berlin, match_distance: 30.00, method: Karagiorgou_2012
+    F: 0.78356, P: 0.79998, R: 0.76779
+dataset: berlin, match_distance: 30.00, method: ours
+    F: 0.78773, P: 0.90507, R: 0.69733
+dataset: berlin, match_distance: 30.00, method: ours_regular
+    F: 0.78773, P: 0.90507, R: 0.69733
+dataset: berlin, match_distance: 35.00, method: Ahmed_2012
+    F: 0.64559, P: 0.79596, R: 0.54301
+dataset: berlin, match_distance: 35.00, method: Biagioni_Eriksson_2012
+    F: 0.83871, P: 0.97207, R: 0.73752
+dataset: berlin, match_distance: 35.00, method: Davies_2006
+    F: 0.71117, P: 0.97770, R: 0.55883
+dataset: berlin, match_distance: 35.00, method: Karagiorgou_2012
+    F: 0.81731, P: 0.84161, R: 0.79438
+dataset: berlin, match_distance: 35.00, method: ours
+    F: 0.82148, P: 0.93094, R: 0.73505
+dataset: berlin, match_distance: 35.00, method: ours_regular
+    F: 0.82148, P: 0.93094, R: 0.73505
+dataset: berlin, match_distance: 40.00, method: Ahmed_2012
+    F: 0.69165, P: 0.83772, R: 0.58895
+dataset: berlin, match_distance: 40.00, method: Biagioni_Eriksson_2012
+    F: 0.85323, P: 0.97806, R: 0.75665
+dataset: berlin, match_distance: 40.00, method: Davies_2006
+    F: 0.73013, P: 0.98668, R: 0.57946
+dataset: berlin, match_distance: 40.00, method: Karagiorgou_2012
+    F: 0.84438, P: 0.87554, R: 0.81535
+dataset: berlin, match_distance: 40.00, method: ours
+    F: 0.84543, P: 0.94860, R: 0.76251
+dataset: berlin, match_distance: 40.00, method: ours_regular
+    F: 0.84543, P: 0.94860, R: 0.76251
+dataset: berlin, match_distance: 45.00, method: Ahmed_2012
+    F: 0.73058, P: 0.87103, R: 0.62914
+dataset: berlin, match_distance: 45.00, method: Biagioni_Eriksson_2012
+    F: 0.86447, P: 0.98188, R: 0.77215
+dataset: berlin, match_distance: 45.00, method: Davies_2006
+    F: 0.74521, P: 0.99278, R: 0.59647
+dataset: berlin, match_distance: 45.00, method: Karagiorgou_2012
+    F: 0.86669, P: 0.90324, R: 0.83299
+dataset: berlin, match_distance: 45.00, method: ours
+    F: 0.86393, P: 0.96082, R: 0.78479
+dataset: berlin, match_distance: 45.00, method: ours_regular
+    F: 0.86393, P: 0.96082, R: 0.78479
+dataset: berlin, match_distance: 50.00, method: Ahmed_2012
+    F: 0.76451, P: 0.89807, R: 0.66553
+dataset: berlin, match_distance: 50.00, method: Biagioni_Eriksson_2012
+    F: 0.87471, P: 0.98465, R: 0.78685
+dataset: berlin, match_distance: 50.00, method: Davies_2006
+    F: 0.75830, P: 0.99598, R: 0.61220
+dataset: berlin, match_distance: 50.00, method: Karagiorgou_2012
+    F: 0.88402, P: 0.92484, R: 0.84666
+dataset: berlin, match_distance: 50.00, method: ours
+    F: 0.87884, P: 0.96921, R: 0.80389
+dataset: berlin, match_distance: 50.00, method: ours_regular
+    F: 0.87884, P: 0.96921, R: 0.80389
+creating buffers of ground truth map...
+done.
+    creating buffers of Ahmed_2012 map...
+    done.
+    creating buffers of Biagioni_Eriksson_2012 map...
+    done.
+    creating buffers of Davies_2006 map...
+    done.
+    creating buffers of Karagiorgou_2012 map...
+    done.
+    creating buffers of ours map...
+    done.
+    creating buffers of ours_regular map...
+    done.
+dataset: chicago, match_distance: 5.00, method: Ahmed_2012
+    F: 0.35754, P: 0.36102, R: 0.35413
+dataset: chicago, match_distance: 5.00, method: Biagioni_Eriksson_2012
+    F: 0.52940, P: 0.64769, R: 0.44765
+dataset: chicago, match_distance: 5.00, method: Davies_2006
+    F: 0.49581, P: 0.82964, R: 0.35355
+
+Process finished with exit code -1073741819 (0xC0000005)
+
+

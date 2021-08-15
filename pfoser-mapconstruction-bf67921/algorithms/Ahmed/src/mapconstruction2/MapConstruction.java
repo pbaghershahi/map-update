@@ -25,6 +25,15 @@ import java.util.PriorityQueue;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.lang.instrument.Instrumentation;
+
+
+class BadInputTrajectory extends Exception { 
+    public BadInputTrajectory(String errorMessage) {
+        super(errorMessage);
+    }
+}
+
 
 class PoseFile {
 	String curveName;
@@ -156,14 +165,14 @@ public class MapConstruction {
 	 * if edge e has a part of white interval else false.
 	 */
 
-	public boolean isWhiteInterval(Edge edge, List<Vertex> pose,
+	public int isWhiteInterval(Edge edge, List<Vertex> pose,
 			int currentIndex, double eps, double altEps) {
 		Line line = new Line(pose.get(currentIndex - 1), pose.get(currentIndex));
 
 		if (Math.abs(line.avgAltitude() - edge.getLine().avgAltitude()) <= altEps) {
 			return line.pIntersection(edge, eps);
 		} else {
-			return false;
+			return 0;
 		}
 	}
 
@@ -184,7 +193,7 @@ public class MapConstruction {
 	 * Scans for next white interval on an Edge starting from index newstart of
 	 * pose.
 	 */
-	public void computeNextInterval(Edge edge, List<Vertex> pose, int newstart,
+	public int computeNextInterval(Edge edge, List<Vertex> pose, int newstart,
 			double eps, double altEps) {
 
 		// Compute next white interval on edge.
@@ -197,19 +206,20 @@ public class MapConstruction {
 		if (newstart >= pose.size()) {
 			edge.setCurveEndIndex(pose.size());
 			edge.setDone(true);
-			return;
+			return 1;
 		}
 
 		for (int i = newstart; i < pose.size(); i++) {
-			boolean result = isWhiteInterval(edge, pose, i, eps, altEps);
+			int result = isWhiteInterval(edge, pose, i, eps, altEps);
 
 			// first = true means we are still looking for our first interval
 			// starting from newstart.
 			// !result indicate Line(pose.get(i), pose.get(i+1)) doesn't contain
 			// white interval.
 			// we can just ignore if(first && !result).
-
-			if (first && result) {
+                        if (result == 2){
+                            return 0;
+                        } else if (first && (result == 1)) {
 				// first segment on the white interval
 				first = false;
 				startIndex = i - 1;
@@ -219,19 +229,19 @@ public class MapConstruction {
 				// if the white interval ends within the same segment
 				if (edge.getCurveEnd() < 1) {
 					this.setEndPointsOnEdge(edge, startIndex, i, cstart, vstart);
-					return;
+					return 1;
 				}
-			} else if (!first && result) {
+			} else if (!first && (result == 1)) {
 				// not the first segment on the white interval
 				if (edge.getCurveEnd() < 1) {
 					// if the white interval ends within that segment
 					this.setEndPointsOnEdge(edge, startIndex, i, cstart, vstart);
-					return;
+					return 1;
 				}
-			} else if (!first && !result) {
+			} else if (!first && (result == 0)) {
 				// the white interval ends at 1.0 of previous segment
 				this.setEndPointsOnEdge(edge, startIndex, i, cstart, vstart);
-				return;
+				return 1;
 			}
 		}
 
@@ -249,7 +259,7 @@ public class MapConstruction {
 			edge.setCurveEndIndex(pose.size() - 2);
 		}
 
-		return;
+		return 1;
 	}
 
 	/**
@@ -495,14 +505,17 @@ public class MapConstruction {
 	 * Update the map for a pose/curve. Definition of black and white interval.
 	 */
 	// @TODO(mahmuda): extract some shorter well-named methods.
-	public void mapConstruction(List<Vertex> constructedMap, List<Edge> edges,
+	public int mapConstruction(List<Vertex> constructedMap, List<Edge> edges,
 			Map<String, Integer> map, List<Vertex> pose, double eps,
 			double altEps) {
 
 		PriorityQueue<Edge> pq = new PriorityQueue<Edge>();
 
 		for (int i = 0; i < edges.size(); i++) {
-			this.computeNextInterval(edges.get(i), pose, 1, eps, altEps);
+			int result = this.computeNextInterval(edges.get(i), pose, 1, eps, altEps);
+                        if (result == 0) {
+                            return 0;
+                        }
 			if (!edges.get(i).getDone()) {
 				pq.add(edges.get(i));
 			}
@@ -521,7 +534,7 @@ public class MapConstruction {
 
 				logger.log(Level.FINER, MapConstruction.curveName
 						+ " inserted as an edge");
-				return;
+				return 1;
 			}
 
 			Edge edge = pq.poll();
@@ -569,11 +582,14 @@ public class MapConstruction {
 				if (edge.getCurveEnd() == pose.size() - 1) {
 					logger.log(Level.FINER, MapConstruction.curveName
 							+ " processing completed.");
-					return;
+					return 1;
 				}
 
-				this.computeNextInterval(edge, pose,
+				int result = this.computeNextInterval(edge, pose,
 						edge.getCurveEndIndex() + 1, eps, altEps);
+                                if (result == 0) {
+                                    return 0;
+                                }
 
 				if (!edge.getDone()) {
 					pq.add(edge);
@@ -599,7 +615,7 @@ public class MapConstruction {
 					this.addToGraph(constructedMap, pose, map, index + 1,
 							pose.size() - 1);
 
-					return;
+					return 1;
 				}
 
 				edge = pq.poll();
@@ -662,9 +678,12 @@ public class MapConstruction {
 			}
 		} catch (Exception ex) {
 			logger.log(Level.SEVERE, ex.toString());
+			System.out.println("***************************");
+			System.out.println(ex);
+			System.out.println("***************************");
 			throw new RuntimeException(ex);
 		}
-		return;
+		return 1;
 	}
 
 	public List<PoseFile> readAllFiles(File folder, boolean hasAltitude) {
@@ -685,12 +704,15 @@ public class MapConstruction {
 		try {
 			double length = 0;
 
+// 			System.out.print("1 - ");
 			// generate list of files in the folder to process
 			for (int k = 0; k < poseFiles.size(); k++) {
 
 				Long startTime = System.currentTimeMillis();
 				MapConstruction.curveid = k;
 				MapConstruction.curveName = poseFiles.get(k).getCurveName();
+
+// 				System.out.print("2 - ");
 
 				length += poseFiles.get(k).getLength();
 
@@ -709,19 +731,28 @@ public class MapConstruction {
 
 				for (int i = 0; i < constructedMap.size(); i++) {
 					Vertex v = constructedMap.get(i);
+// 					System.out.print("3 - ");
 					for (int j = 0; j < v.getDegree(); j++) {
+// 					    System.out.print("4 - ");
 						Vertex v1 = constructedMap.get(v
 								.getAdjacentElementAt(j));
+// 						System.out.print("5 - ");
 						if (!v.equals(v1)) {
 							Edge newEdge = new Edge(v, v1);
 							edges.add(newEdge);
 							updateSiblingHashMap(siblingMap, newEdge);
 						}
+// 						System.out.print("6 - ");
 					}
 				}
-
-				this.mapConstruction(constructedMap, edges, map,
+//                 System.out.print("7 - ");
+// 				System.out.println(InstrumentationAgent.getObjectSize(constructedMap));
+				int result = this.mapConstruction(constructedMap, edges, map,
 						poseFiles.get(k).getPose(), eps, altEps);
+                                if (result == 0){
+                                    continue;
+                                }
+// 				System.out.println("8");
 				this.commitEdgeSplitsAll(constructedMap, map, siblingMap, edges);
 
 				logger.info("k :" + k + " " + MapConstruction.curveName + " "
@@ -730,9 +761,8 @@ public class MapConstruction {
 
 			}
 		} catch (Exception e) {
-			logger.log(Level.SEVERE, e.toString());
-			throw new RuntimeException(e);
-		}
+                    throw e;
+                }
 		return constructedMap;
 	}
 

@@ -78,35 +78,41 @@ def get_time_boundary(dir_path, out_bound_file):
 def test(dir_path, out_time_bound_file, out_loc_bound_file):
     north, south, east, west = 35.7384, 35.7185, 51.3822, 51.3200
     start = datetime.fromisoformat('2021-06-06 00:00:00')
-    end = datetime.fromisoformat('2021-06-08 23:59:59')
+    end = datetime.fromisoformat('2021-06-06 23:59:59')
     file_paths = sorted([os.path.join(dir_path, file_name) for file_name in os.listdir(dir_path)])
     total_records = 0
+    counter = -1
     for file_path in tqdm(file_paths, total=len(file_paths)):
         try:
+            counter += 1
             trajs = pd.read_parquet(file_path)
-            trajs['timestamp'] = trajs.timestamp.apply(
-                lambda x: datetime.fromtimestamp(int(x) / 1000)
-            )
-            trajs = trajs[trajs.timestamp.between(start, end)]
-            trajs['location'] = trajs.location.apply(
-                lambda x: convert_location(x)
-            )
-            trajs['longitude'] = trajs.location.apply(
-                lambda x: x[0]
-            )
-            trajs['latitude'] = trajs.location.apply(
-                lambda x: x[1]
-            )
-            trajs = trajs[
-                trajs.latitude.between(south, north) & trajs.longitude.between(west, east)
-            ]
-            total_records += trajs.shape[0]
         except:
-            pass
+            os.remove(file_path)
+            continue
+        trajs['timestamp'] = trajs.timestamp.apply(
+            lambda x: datetime.fromtimestamp(int(x) / 1000)
+        )
+        trajs = trajs[trajs.timestamp.between(start, end)]
+        trajs['location'] = trajs.location.apply(
+            lambda x: convert_location(x)
+        )
+        trajs['longitude'] = trajs.location.apply(
+            lambda x: x[0]
+        )
+        trajs['latitude'] = trajs.location.apply(
+            lambda x: x[1]
+        )
+        trajs = trajs[
+            trajs.latitude.between(south, north) & trajs.longitude.between(west, east)
+        ]
+        if trajs.shape[0] > 0:
+            print(counter, trajs.shape[0], file_path)
+        total_records += trajs.shape[0]
 
     print(f'Total number of records: {total_records}')
 
-dir_path = '/media/peyman/Elements/teh_uni_loc_sample_2weeks_entire_city/'
+# dir_path = '/home/peymanbi/Downloads/loc-sample/'
+dir_path = '/media/peymanbi/Elements/teh_uni_loc_sample_2weeks_entire_city'
 out_loc_bound_file = './utils/full_area_loc_bounding_box.txt'
 # get_loc_boundary(dir_path, out_loc_bound_file)
 out_time_bound_file = './utils/full_area_time_bounding_box.txt'

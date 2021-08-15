@@ -1,0 +1,1 @@
+T = csvread('sample.csv', 1, 0);

@@ -1,0 +1,1 @@
+Total elapsed time is 47.5470 second.

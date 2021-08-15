@@ -263,7 +263,7 @@ public class Line {
   /**
    * Sets curveStart, curveEnd, edgeStart and edgeEnd on edge.
    */
-  public void setIntervalOnEdge(Edge e,
+  public int setIntervalOnEdge(Edge e,
       double eps,
       double cIntervalStart,
       double cIntervalEnd,
@@ -280,8 +280,8 @@ public class Line {
       double[] in1 = e.getLine().pIntersection(this.getVertex(interval[0]), eps, true);
 
       if (in1 == null) {
-        //logger.log(Level.SEVERE, "Problem computing Line intersection: in1.");
-        throw new RuntimeException();
+          System.out.println("A bad input trajectory observed!");
+          return 0;
       }
 
       if (in1[0] >= 0 && in1[0] <= 1 && in1[1] >= 0 && in1[1] <= 1) {
@@ -302,8 +302,8 @@ public class Line {
       double[] in2 = e.getLine().pIntersection(this.getVertex(interval[1]), eps, true);
 
       if (in2 == null) {
-        //logger.log(Level.SEVERE, "Problem computing Line intersection: in2.");
-        throw new RuntimeException();
+          System.out.println("A bad input trajectory observed!");
+          return 0;
       }
 
       if (in2[0] >= 0 && in2[0] <= 1 && in2[1] >= 0 && in2[1] <= 1) {
@@ -321,7 +321,8 @@ public class Line {
     e.setCurveEnd(interval[1]);
     e.setEdgeStart(vstart);
     e.setEdgeEnd(vend);
-
+    
+    return 1;
   }
 
   /**
@@ -334,7 +335,7 @@ public class Line {
    * @return true when they have intersection or false when they don't intersect.
    */
   // TODO(mahmuda): Add unit test for this method.
-  public boolean pIntersection(Edge e, double eps) {
+  public int pIntersection(Edge e, double eps) {
 
     /*
      * Line 1: x1+(x2-x1)*t = x y1+(y2-y1)*t = y
@@ -363,7 +364,7 @@ public class Line {
       double t[] = this.getTParallel(vline, eps);
 
       if (t == null) {
-        return false;
+        return 0;
       }
 
       cIntervalStart = t[0];
@@ -371,12 +372,12 @@ public class Line {
 
       t = vline.pIntersection(this.getVertex(cIntervalStart), eps, true);
       if (t == null) {
-        return false;
+        return 0;
       }
       neighborhoodStart = (t[0] + t[1]) / 2.0;
       t = vline.pIntersection(this.getVertex(cIntervalEnd), eps, true);
       if (t == null) {
-        return false;
+        return 0;
       }
       neighborhoodEnd = (t[0] + t[1]) / 2.0;
 
@@ -420,13 +421,13 @@ public class Line {
 
       // intersection of line and eps-neighborhood of e is non-empty
       if (cIntervalStart > 1 || cIntervalEnd < 0) {
-        return false;
+        return 0;
       }
 
       // intersection of line and eps-neighborhood of e is empty
       if ((neighborhoodStart > 1 && neighborhoodEnd > 1)
           || (neighborhoodStart < 0 && neighborhoodEnd < 0)) {
-        return false;
+        return 0;
       }
 
       // intersection needs to be in the eps-region
@@ -435,7 +436,7 @@ public class Line {
         cIntervalStart = Math.max(0, cIntervalStart);
         cIntervalEnd = Math.min(1, cIntervalEnd);
       } else {
-        return false;
+        return 0;
       }
     }
     // line doesn't intersect with eps-disc of first endpoint
@@ -447,7 +448,7 @@ public class Line {
       if (((neighborhoodStart > 1 && neighborhoodEnd > 1)
           || (neighborhoodStart < 0 && neighborhoodEnd < 0))
           && (minInterval1 > 1 || maxInterval1 < 0)) {
-        return false;
+        return 0;
       }
       if (neighborhoodStart < 0) {
         if (minInterval1 <= 1) {
@@ -478,7 +479,7 @@ public class Line {
       if (((neighborhoodStart > 1 && neighborhoodEnd > 1)
           || (neighborhoodStart < 0 && neighborhoodEnd < 0))
           && (minInterval2 > 1 || maxInterval2 < 0)) {
-        return false;
+        return 0;
       }
 
       if (neighborhoodStart > 1) {
@@ -505,18 +506,18 @@ public class Line {
           && neighborhoodEnd <= 1)) {
         if (neighborhoodStart >= 0 && neighborhoodStart <= 1) {
           if (cIntervalStart > 1 && minInterval2 > 1) {
-            return false;
+            return 0;
           }
           if (cIntervalStart < 0 && maxInterval2 < 0) {
-            return false;
+            return 0;
           }
         }
         if (neighborhoodEnd >= 0 && neighborhoodEnd <= 1) {
           if (cIntervalEnd > 1 && minInterval2 > 1) {
-            return false;
+            return 0;
           }
           if (cIntervalEnd < 0 && maxInterval2 < 0) {
-            return false;
+            return 0;
           }
         }
       }
@@ -527,18 +528,18 @@ public class Line {
 
         if (neighborhoodStart >= 0 && neighborhoodStart <= 1) {
           if (cIntervalStart > 1 && minInterval1 > 1) {
-            return false;
+            return 0;
           }
           if (cIntervalStart < 0 && maxInterval1 < 0) {
-            return false;
+            return 0;
           }
         }
         if (neighborhoodEnd >= 0 && neighborhoodEnd <= 1) {
           if (cIntervalEnd > 1 && minInterval1 > 1) {
-            return false;
+            return 0;
           }
           if (cIntervalEnd < 0 && maxInterval1 < 0) {
-            return false;
+            return 0;
           }
         }
       }
@@ -555,16 +556,19 @@ public class Line {
     }
 
     if (cIntervalStart > 1 || cIntervalEnd < 0) {
-      return false;
+      return 0;
     }
 
     if (Math.max(maxInterval1, maxInterval2) < 0 || Math.min(minInterval1, minInterval2) > 1) {
-      return false;
+      return 0;
     }
 
-    this.setIntervalOnEdge(e, eps, cIntervalStart, cIntervalEnd, vstart, vend);
+    int intersect_flag = this.setIntervalOnEdge(e, eps, cIntervalStart, cIntervalEnd, vstart, vend);
+    if (intersect_flag == 0){
+        return 2;
+    }
 
-    return true;
+    return 1;
 
   }
 
