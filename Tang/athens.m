@@ -24,7 +24,7 @@ final_map_name    = 'chicago_constructed_map.shp';     % constructed final map n
 % Data pre-procesing
 disp('setp1. data pre-procesing, please waitting ...');
 library_path = genpath(pwd);
-##disp(library_path);
+% disp(library_path);
 addpath( library_path );
 % tic;
 disp(trips_path);
@@ -33,7 +33,7 @@ trip = tripRead(trips_path);
 option.interp_dist = interp_dist;
 gps = tripTransform(trip, option.interp_dist);      % ��interp_dist(m)Ϊ�����Թ켣���в�ֵ
 % toc;
-clear trip;
+%clear trip;
 disp('   done.');
 disp(' ');
 
@@ -43,7 +43,9 @@ disp('setp2. gps trace points clustering, please waitting ...');
 coord_direct_speed_index = [2,3,5,6]; % GPS��������X��Y��Direction(deg)��Speed(km/h)������
 carid_index = 1; % GPS��������CarID��������
 
+disp("before first gps command");
 X = gps(:,coord_direct_speed_index); % GPS������[x,y,direction]
+disp("before second gps command");
 CarId = gps(:,carid_index);
 
 % 0. ����Ԥ����
@@ -52,14 +54,17 @@ CarId = gps(:,carid_index);
 option.max_speed = 100;
 option.min_speed = 5;
 
+disp("before unique command");
 [~, m] = unique(X(:,1:2), 'rows');
 X = X(m, :);
 CarId = CarId(m);
+disp("here1");
 
+K = X(:,4);
 m = X(:,4)>=option.min_speed & X(:,4)<=option.max_speed;
 X = X(m,1:3);
 CarId = CarId(m);
-clear m  gps coord_direct_speed_index carid_index;
+% clear m  gps coord_direct_speed_index carid_index;
 
 % 1. �����ռ�����
 % sigma = 3;         % Normalcut�и����������ߵķ����
@@ -81,23 +86,11 @@ option.neighbor_threshold = max_neighbor_diff;     % ���ڹ켣��֮��
 option.cluster_threshold  = max_cluster_diff;     % ͬһ�����ڵĹ켣�㷽����������ֵ (deg)
 option.spatial_threshold  = 10;     % ���ڹ켣��֮���ĺ������루��ֱ���˶���������ֵ m
 
-% {
-% clustering only consider the one way roads
 IDX = CDBSC_abs(X(:,1:3), ...
     option.neighbor_threshold, ...
     option.cluster_threshold, ...
     option.spatial_threshold, [], ...
     connect);
-%}
-
-%{
-% clustering consider the multiple way roads
-IDX = CDBSC(gps(:,1:3), ...
-    option.neighbor_threshold, ...
-    option.cluster_threshold, ...
-    option.spatial_threshold, [], ...
-    connect);
-%}
 
 
 option.min_road_length = min_road_len;
@@ -217,8 +210,3 @@ fprintf(fid, 'Total elapsed time is %.4f second.', elipsed_time);
 fclose(fid);
 
 disp(['Total elapsed time is ', num2str(elipsed_time), ' second.']);
-
-
-
-
-
